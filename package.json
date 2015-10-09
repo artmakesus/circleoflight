@@ -1,0 +1,37 @@
+{
+  "name": "circle-of-light",
+  "version": "0.0.1",
+  "description": "An automated photo / light-painting framework",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/artmakesus/circleoflight.git"
+  },
+  "contributors": [
+    {
+      "name": "Jacky Boen",
+      "email": "aqiank@gmail.com"
+    },
+    {
+      "name": "Pradashini Subramaniam",
+      "email": "pradashini@gmail.com"
+    }
+  ],
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/artmakesus/circleoflight/issues"
+  },
+  "homepage": "https://github.com/artmakesus/circleoflight#readme",
+  "dependencies": {
+    "classnames": "^2.1.5",
+    "express": "^4.13.3",
+    "flux": "^2.1.1",
+    "merge": "^1.2.0",
+    "nuka-carousel": "^1.0.1",
+    "react": "^0.14.0",
+    "react-dom": "^0.14.0"
+  }
+}

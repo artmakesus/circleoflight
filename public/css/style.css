@@ -1,0 +1,55 @@
+html, body, #root {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	background: black;
+	overflow: hidden;
+}
+
+h1, h2, h3, h4, h5, h6, p, span {
+	color: white;
+}
+
+button {
+	color: white;
+	background: black;
+	transition: color .2s, background .2s;
+	padding: 16px 32px;
+	border: 1px solid white;
+	margin: 16px 8px;
+	cursor: pointer;
+}
+
+button:hover {
+	color: black;
+	background: white;
+}
+
+.fill-width {
+	width: 100%;
+}
+
+.fill-height {
+	height: 100%;
+}
+
+.center {
+	text-align: center;
+	margin: 0 auto;
+}
+
+.valign-wrapper {
+	display: -webkit-box;
+	display: -moz-box;
+	display: -ms-flexbox;
+	display: -webkit-flex;
+	display: flex;
+	-webkit-flex-align: center;
+	-ms-flex-align: center;
+	-webkit-align-items: center;
+	align-items: center;
+}
+
+.valign {
+	display: block;
+}
