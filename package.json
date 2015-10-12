@@ -35,6 +35,7 @@
     "merge": "^1.2.0",
     "nuka-carousel": "^1.0.1",
     "react": "^0.14.0",
-    "react-dom": "^0.14.0"
+    "react-dom": "^0.14.0",
+    "serialport": "^1.7.4"
   }
 }
