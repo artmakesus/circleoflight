@@ -1,5 +1,6 @@
 'use strict';
 
+var $ = require('jquery');
 var React = require('react');
 var ReactDOM = require('react-dom');
 var Flux = require('flux');
@@ -21,21 +22,24 @@ var App = React.createClass({
 			case 'two':
 				elem = React.createElement(StepTwo, null);break;
 			case 'three':
-				elem = React.createElement(StepThree, null);break;
+				elem = React.createElement(StepThree, { image: this.state.image });break;
 			case 'four':
-				elem = React.createElement(StepFour, null);break;
+				elem = React.createElement(StepFour, { resultPhoto: this.state.resultPhoto });break;
 		}
 
 		return elem;
 	},
 	getInitialState: function getInitialState() {
-		return { step: 'one' };
+		return { step: 'one', image: null, resultPhoto: null };
 	},
 	componentDidMount: function componentDidMount() {
 		this.listenerID = dispatcher.register((function (payload) {
 			switch (payload.type) {
 				case 'gotoStep':
-					this.setState({ step: payload.step });
+					if (payload.step == 'three' && !payload.image || payload.step == 'four' && !payload.resultPhoto) {
+						break;
+					}
+					this.setState({ step: payload.step, image: payload.image, resultPhoto: payload.resultPhoto });
 					break;
 			}
 		}).bind(this));
@@ -103,17 +107,10 @@ var Header = React.createClass({
 var StepOne = React.createClass({
 	displayName: 'StepOne',
 
-	styles: {
-		container: {
-			width: '100%',
-			height: '100%',
-			background: 'black'
-		}
-	},
 	render: function render() {
 		return React.createElement(
 			'div',
-			{ style: this.styles.container },
+			{ className: 'fill-height' },
 			React.createElement(
 				'div',
 				{ className: 'valign-wrapper fill-height' },
@@ -140,11 +137,24 @@ StepOne.Examples = React.createClass({
 			React.createElement(
 				Carousel,
 				{ decorators: [] },
-				React.createElement('img', { className: 'center', src: 'images/circleoflight.jpg', width: '512' }),
-				React.createElement('img', { className: 'center', src: 'images/circleoflight.jpg', width: '512' }),
-				React.createElement('img', { className: 'center', src: 'images/circleoflight.jpg', width: '512' })
+				this.state.photos.map(function (photo) {
+					return React.createElement('img', { key: photo, className: 'center', src: photo, width: '512' });
+				})
 			)
 		);
+	},
+	getInitialState: function getInitialState() {
+		return { photos: [] };
+	},
+	componentDidMount: function componentDidMount() {
+		$.ajax({
+			url: '/photos',
+			method: 'GET'
+		}).done((function (resp) {
+			this.setState({ photos: resp });
+		}).bind(this)).fail((function (resp) {
+			console.log(resp);
+		}).bind(this));
 	}
 });
 
@@ -181,10 +191,7 @@ StepOne.Intro = React.createClass({
 		);
 	},
 	handleClick: function handleClick() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'two'
-		});
+		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	}
 });
 
@@ -212,18 +219,9 @@ StepTwo.Gallery = React.createClass({
 			React.createElement(
 				Carousel,
 				{ ref: 'carousel', slidesToShow: 3, cellAlign: 'center', decorators: [], data: this.setCarouselData.bind(this, 'carousel') },
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null),
-				React.createElement(StepTwo.Gallery.Item, null)
+				this.state.images.map(function (image) {
+					return React.createElement(StepTwo.Gallery.Item, { key: image, image: image });
+				})
 			),
 			React.createElement(
 				'div',
@@ -250,6 +248,19 @@ StepTwo.Gallery = React.createClass({
 			)
 		);
 	},
+	getInitialState: function getInitialState() {
+		return { images: [] };
+	},
+	componentDidMount: function componentDidMount() {
+		$.ajax({
+			url: '/images',
+			method: 'GET'
+		}).done((function (resp) {
+			this.setState({ images: resp });
+		}).bind(this)).fail((function (resp) {
+			console.log(resp);
+		}).bind(this));
+	},
 	handleSurprise: function handleSurprise() {
 		var carousel = this.state.carousels.carousel;
 		var num = carousel.props.children.length;
@@ -257,16 +268,12 @@ StepTwo.Gallery = React.createClass({
 		carousel.goToSlide(random);
 	},
 	handleSubmit: function handleSubmit() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'three'
-		});
+		var carousel = this.state.carousels.carousel;
+		var image = this.state.images[carousel.state.currentSlide];
+		dispatcher.dispatch({ type: 'gotoStep', step: 'three', image: image });
 	},
 	handleBack: function handleBack() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'one'
-		});
+		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
 	}
 });
 
@@ -277,7 +284,7 @@ StepTwo.Gallery.Item = React.createClass({
 		return React.createElement(
 			'div',
 			{ className: 'valign-wrapper', style: { height: '360px' } },
-			React.createElement('img', { className: 'center', src: 'images/circleoflight.jpg', height: '256' })
+			React.createElement('img', { className: 'center', src: this.props.image, height: '256' })
 		);
 	}
 });
@@ -290,28 +297,8 @@ var StepThree = React.createClass({
 			'div',
 			null,
 			React.createElement(Header, { tab: 'two' }),
-			React.createElement(StepThree.Counter, { counter: this.state.counter })
+			React.createElement(StepThree.Counter, { image: this.props.image })
 		);
-	},
-	getInitialState: function getInitialState() {
-		return { counter: 10 };
-	},
-	componentDidMount: function componentDidMount() {
-		this.counterID = window.setInterval(this.countDown, 1000);
-	},
-	componentWillUnmount: function componentWillUnmount() {
-		clearTimeout(this.counterID);
-	},
-	countDown: function countDown() {
-		var counter = this.state.counter;
-		if (counter > 0) {
-			this.setState({ counter: counter - 1 });
-		} else {
-			dispatcher.dispatch({
-				type: 'gotoStep',
-				step: 'four'
-			});
-		}
 	}
 });
 
@@ -346,7 +333,7 @@ StepThree.Counter = React.createClass({
 				React.createElement(
 					'p',
 					{ style: this.styles.number },
-					this.props.counter
+					this.state.counter
 				),
 				React.createElement(
 					'button',
@@ -356,6 +343,35 @@ StepThree.Counter = React.createClass({
 			)
 		);
 	},
+	getInitialState: function getInitialState() {
+		return { counter: 1 };
+	},
+	componentDidMount: function componentDidMount() {
+		this.counterID = window.setInterval(this.countDown, 1000);
+	},
+	componentWillUnmount: function componentWillUnmount() {
+		clearTimeout(this.counterID);
+	},
+	countDown: function countDown() {
+		var counter = this.state.counter;
+		if (counter > 0) {
+			this.setState({ counter: counter - 1 });
+		} else {
+			this.capture();
+		}
+	},
+	capture: function capture() {
+		$.ajax({
+			url: '/capture',
+			method: 'POST',
+			data: { image: this.props.image }
+		}).done(function (resp) {
+			console.log(resp);
+			dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: resp });
+		}).fail(function (resp) {
+			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
+		});
+	},
 	handleCancel: function handleCancel() {
 		dispatcher.dispatch({ type: "gotoStep", step: "two" });
 	}
@@ -364,20 +380,30 @@ StepThree.Counter = React.createClass({
 var StepFour = React.createClass({
 	displayName: 'StepFour',
 
-	styles: {
-		container: {
-			width: '100%',
-			height: '100%',
-			background: 'black'
-		}
-	},
 	render: function render() {
 		return React.createElement(
 			'div',
-			{ style: this.styles.container },
-			React.createElement(Header, { tab: 'three' }),
-			React.createElement(StepFour.Result, null)
+			{ className: 'relative fill-height' },
+			React.createElement(Header, { className: 'absolute', tab: 'three' }),
+			React.createElement(StepFour.Result, { resultPhoto: this.props.resultPhoto }),
+			React.createElement(StepFour.Form, { show: this.state.showShareForm })
 		);
+	},
+	getInitialState: function getInitialState() {
+		return { showShareForm: false };
+	},
+	componentDidMount: function componentDidMount() {
+		this.listenerID = dispatcher.register((function (payload) {
+			switch (payload.type) {
+				case 'showShareForm':
+					this.setState({ showShareForm: true });break;
+				case 'hideShareForm':
+					this.setState({ showShareForm: false });break;
+			}
+		}).bind(this));
+	},
+	componentWillUnmount: function componentWillUnmount() {
+		dispatcher.unregister(this.listenerID);
 	}
 });
 
@@ -387,36 +413,126 @@ StepFour.Result = React.createClass({
 	render: function render() {
 		return React.createElement(
 			'div',
-			{ className: 'center' },
-			React.createElement(
-				'h1',
-				null,
-				'Here is your photo'
-			),
+			{ className: 'absolute center fill-width fill-height valign-wrapper' },
 			React.createElement(
 				'div',
-				null,
-				React.createElement('img', { src: 'images/circleoflight.jpg', height: '384' })
-			),
-			React.createElement(
-				'button',
-				{ onClick: this.handleRetake },
-				'Retake'
-			),
-			React.createElement(
-				'button',
-				{ onClick: this.handleSave },
-				'Save'
+				{ className: 'valign center' },
+				React.createElement(
+					'h1',
+					null,
+					'Here is your photo'
+				),
+				React.createElement(
+					'div',
+					null,
+					React.createElement('img', { src: this.props.resultPhoto, height: '384' })
+				),
+				React.createElement(
+					'button',
+					{ onClick: this.handleRetake },
+					'Retake'
+				),
+				React.createElement(
+					'button',
+					{ onClick: this.handleShare },
+					'Share'
+				)
 			)
 		);
 	},
 	handleRetake: function handleRetake() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'two'
-		});
+		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	},
-	handleSave: function handleSave() {}
+	handleShare: function handleShare() {
+		dispatcher.dispatch({ type: 'showShareForm' });
+	}
+});
+
+StepFour.Form = React.createClass({
+	displayName: 'Form',
+
+	image: null,
+	styles: {
+		container: {
+			background: 'rgba(0, 0, 0, 0.8)',
+			zIndex: '-1'
+		},
+		show: {
+			background: 'rgba(0, 0, 0, 0.8)',
+			zIndex: '1'
+		}
+	},
+	render: function render() {
+		if (this.props.show) {
+			return React.createElement(
+				'form',
+				{ className: 'absolute fill-width fill-height valign-wrapper', onSubmit: this.handleSubmit, style: this.styles.show },
+				React.createElement(
+					'div',
+					{ className: 'valign center' },
+					React.createElement(
+						'h1',
+						null,
+						'Share through Email'
+					),
+					React.createElement('input', { type: 'email', name: 'email', required: true }),
+					React.createElement(
+						'div',
+						null,
+						React.createElement('input', { type: 'button', onClick: this.handleCancel, value: 'Cancel' }),
+						React.createElement(
+							'button',
+							{ type: 'submit' },
+							'Submit'
+						)
+					)
+				)
+			);
+		}
+		return React.createElement(
+			'form',
+			{ className: 'absolute fill-width fill-height valign-wrapper', onSubmit: this.handleSubmit, style: this.styles.container },
+			React.createElement(
+				'div',
+				{ className: 'valign center' },
+				React.createElement(
+					'h1',
+					null,
+					'Share through Email'
+				),
+				React.createElement('input', { type: 'email', name: 'email', required: true }),
+				React.createElement(
+					'div',
+					null,
+					React.createElement('input', { type: 'button', onClick: this.handleCancel, value: 'Cancel' }),
+					React.createElement(
+						'button',
+						{ type: 'submit' },
+						'Submit'
+					)
+				)
+			)
+		);
+	},
+	handleCancel: function handleCancel(evt) {
+		dispatcher.dispatch({ type: 'hideShareForm' });
+	},
+	handleSubmit: function handleSubmit(evt) {
+		evt.preventDefault();
+
+		var form = evt.target;
+		$.ajax({
+			url: '/share',
+			method: 'POST',
+			data: $(form).serialize()
+		}).done(function (resp) {
+			alert('We\'ve emailed the photograph to your email address!');
+			dispatcher.dispatch({ type: 'hideShareForm' });
+		}).fail(function (resp) {
+			alert('Sorry! We encountered problem while sending the photograph to your email address.');
+			dispatcher.dispatch({ type: 'hideShareForm' });
+		});
+	}
 });
 
 ReactDOM.render(React.createElement(App, null), document.getElementById('root'));

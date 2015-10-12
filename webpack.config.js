@@ -1,8 +1,10 @@
+var path = require('path');
+
 module.exports = {
-	context: __dirname + '/public',
-	entry: './components/build/App.js',
+	context: __dirname + path.sep + 'public',
+	entry: '.' + path.sep + 'components' + path.sep + 'build' + path.sep + 'App.js',
 	output: {
-		filename: './js/script.bundle.js',
+		filename: '.' + path.sep + 'public' + path.sep + 'js' + path.sep + 'script.bundle.js',
 	},
 	resolve: {
 		modulesDirectories: [ 'node_modules' ],

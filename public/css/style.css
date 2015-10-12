@@ -10,7 +10,7 @@ h1, h2, h3, h4, h5, h6, p, span {
 	color: white;
 }
 
-button {
+button, input[type=button] {
 	color: white;
 	background: black;
 	transition: color .2s, background .2s;
@@ -20,9 +20,17 @@ button {
 	cursor: pointer;
 }
 
-button:hover {
+button:hover, input[type=button]:hover {
 	color: black;
 	background: white;
+}
+
+.relative {
+	position: relative;
+}
+
+.absolute {
+	position: absolute;
 }
 
 .fill-width {

@@ -1,9 +1,10 @@
-var React = require('react');
+var $        = require('jquery');
+var React    = require('react');
 var ReactDOM = require('react-dom');
-var Flux = require('flux');
+var Flux     = require('flux');
 var Carousel = require('nuka-carousel');
-var cx = require('classnames');
-var m = require('merge');
+var cx       = require('classnames');
+var m        = require('merge');
 
 var dispatcher = new Flux.Dispatcher();
 
@@ -17,21 +18,25 @@ var App = React.createClass({
 		case 'two':
 			elem = <StepTwo />; break;
 		case 'three':
-			elem = <StepThree />; break;
+			elem = <StepThree image={this.state.image} />; break;
 		case 'four':
-			elem = <StepFour />; break;
+			elem = <StepFour resultPhoto={this.state.resultPhoto} />; break;
 		}
 
 		return elem;
 	},
 	getInitialState: function() {
-		return { step: 'one' }
+		return { step: 'one', image: null, resultPhoto: null }
 	},
 	componentDidMount: function() {
 		this.listenerID = dispatcher.register(function(payload) {
 			switch (payload.type) {
 			case 'gotoStep':
-				this.setState({ step: payload.step });
+				if ((payload.step == 'three' && !payload.image) ||
+				    (payload.step == 'four' && !payload.resultPhoto)) {
+					break;
+				}
+				this.setState({ step: payload.step, image: payload.image, resultPhoto: payload.resultPhoto });
 				break;
 			}
 		}.bind(this));
@@ -77,16 +82,9 @@ var Header = React.createClass({
 });
 
 var StepOne = React.createClass({
-	styles: {
-		container: {
-			width: '100%',
-			height: '100%',
-			background: 'black',
-		},
-	},
 	render: function() {
 		return (
-			<div style={this.styles.container}>
+			<div className='fill-height'>
 				<div className='valign-wrapper fill-height'>
 					<StepOne.Examples />
 					<StepOne.Intro />
@@ -106,13 +104,26 @@ StepOne.Examples = React.createClass({
 	render: function() {
 		return (
 			<div style={this.styles.container}>
-				<Carousel decorators={[]}>
-					<img className='center' src='images/circleoflight.jpg' width='512' />
-					<img className='center' src='images/circleoflight.jpg' width='512' />
-					<img className='center' src='images/circleoflight.jpg' width='512' />
-				</Carousel>
+				<Carousel decorators={[]}>{
+					this.state.photos.map(function(photo) {
+						return <img key={photo} className='center' src={photo} width='512' />
+					})
+				}</Carousel>
 			</div>
 		)
+	},
+	getInitialState: function() {
+		return { photos: [] }
+	},
+	componentDidMount: function() {
+		$.ajax({
+			url: '/photos',
+			method: 'GET',
+		}).done(function(resp) {
+			this.setState({ photos: resp });
+		}.bind(this)).fail(function(resp) {
+			console.log(resp);
+		}.bind(this));
 	},
 });
 
@@ -135,10 +146,7 @@ StepOne.Intro = React.createClass({
 		)
 	},
 	handleClick: function() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'two',
-		});
+		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	},
 });
 
@@ -158,20 +166,11 @@ StepTwo.Gallery = React.createClass({
 	render: function() {
 		return (
 			<div className='fill-width fill-height'>
-				<Carousel ref='carousel' slidesToShow={3} cellAlign='center' decorators={[]} data={this.setCarouselData.bind(this, 'carousel')}>
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-					<StepTwo.Gallery.Item />
-				</Carousel>
+				<Carousel ref='carousel' slidesToShow={3} cellAlign='center' decorators={[]} data={this.setCarouselData.bind(this, 'carousel')}>{
+					this.state.images.map(function(image) {
+						return <StepTwo.Gallery.Item key={image} image={image} />
+					})
+				}</Carousel>
 				<div className='center'>
 					<button onClick={this.handleSurprise}>Surprise me</button>
 					<button onClick={this.handleSubmit}>Submit</button>
@@ -182,6 +181,19 @@ StepTwo.Gallery = React.createClass({
 			</div>
 		)
 	},
+	getInitialState: function() {
+		return { images : [] };
+	},
+	componentDidMount: function() {
+		$.ajax({
+			url: '/images',
+			method: 'GET',
+		}).done(function(resp) {
+			this.setState({ images: resp });
+		}.bind(this)).fail(function(resp) {
+			console.log(resp);
+		}.bind(this));
+	},
 	handleSurprise: function() {
 		var carousel = this.state.carousels.carousel;
 		var num = carousel.props.children.length;
@@ -189,16 +201,12 @@ StepTwo.Gallery = React.createClass({
 		carousel.goToSlide(random);
 	},
 	handleSubmit: function() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'three',
-		});
+		var carousel = this.state.carousels.carousel;
+		var image = this.state.images[carousel.state.currentSlide];
+		dispatcher.dispatch({ type: 'gotoStep', step: 'three', image: image });
 	},
 	handleBack: function() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'one',
-		});
+		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
 	},
 });
 
@@ -206,7 +214,7 @@ StepTwo.Gallery.Item = React.createClass({
 	render: function() {
 		return (
 			<div className='valign-wrapper' style={{ height: '360px' }}>
-				<img className='center' src='images/circleoflight.jpg' height='256' />
+				<img className='center' src={this.props.image} height='256' />
 			</div>
 		)
 	}
@@ -217,29 +225,9 @@ var StepThree = React.createClass({
 		return (
 			<div>
 				<Header tab="two" />
-				<StepThree.Counter counter={this.state.counter} />
+				<StepThree.Counter image={this.props.image} />
 			</div>
 		)
-	},
-	getInitialState: function() {
-		return { counter: 10 };
-	},
-	componentDidMount: function() {
-		this.counterID = window.setInterval(this.countDown, 1000);
-	},
-	componentWillUnmount: function() {
-		clearTimeout(this.counterID);
-	},
-	countDown: function() {
-		var counter = this.state.counter;
-		if (counter > 0) {
-			this.setState({ counter: counter - 1 });
-		} else {
-			dispatcher.dispatch({
-				type: 'gotoStep',
-				step: 'four',
-			});
-		}
 	},
 });
 
@@ -258,11 +246,40 @@ StepThree.Counter = React.createClass({
 				<div className='valign center'>
 					<h1>Photo Taking In</h1>
 					<h2>Stand in front of the light stick for 5 seconds</h2>
-					<p style={this.styles.number}>{this.props.counter}</p>
+					<p style={this.styles.number}>{this.state.counter}</p>
 					<button onClick={this.handleCancel}>Cancel</button>
 				</div>
 			</div>
 		)
+	},
+	getInitialState: function() {
+		return { counter: 1 };
+	},
+	componentDidMount: function() {
+		this.counterID = window.setInterval(this.countDown, 1000);
+	},
+	componentWillUnmount: function() {
+		clearTimeout(this.counterID);
+	},
+	countDown: function() {
+		var counter = this.state.counter;
+		if (counter > 0) {
+			this.setState({ counter: counter - 1 });
+		} else {
+			this.capture();
+		}
+	},
+	capture: function() {
+		$.ajax({
+			url: '/capture',
+			method: 'POST',
+			data: { image: this.props.image },
+		}).done(function(resp) {
+			console.log(resp);
+			dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: resp });
+		}).fail(function(resp) {
+			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
+		});
 	},
 	handleCancel: function() {
 		dispatcher.dispatch({ type: "gotoStep", step: "two" });
@@ -270,41 +287,112 @@ StepThree.Counter = React.createClass({
 });
 
 var StepFour = React.createClass({
-	styles: {
-		container: {
-			width: '100%',
-			height: '100%',
-			background: 'black',
-		},
-	},
 	render: function() {
 		return (
-			<div style={this.styles.container}>
-				<Header tab="three" />
-				<StepFour.Result />
+			<div className='relative fill-height'>
+				<Header className='absolute' tab="three" />
+				<StepFour.Result resultPhoto={this.props.resultPhoto} />
+				<StepFour.Form show={this.state.showShareForm} />
 			</div>
 		)
+	},
+	getInitialState: function() {
+		return { showShareForm: false };
+	},
+	componentDidMount: function() {
+		this.listenerID = dispatcher.register(function(payload) {
+			switch (payload.type) {
+			case 'showShareForm':
+				this.setState({ showShareForm: true }); break;
+			case 'hideShareForm':
+				this.setState({ showShareForm: false }); break;
+			}
+		}.bind(this));
+	},
+	componentWillUnmount: function() {
+		dispatcher.unregister(this.listenerID);
 	},
 });
 
 StepFour.Result = React.createClass({
 	render: function() {
 		return (
-			<div className='center'>
-				<h1>Here is your photo</h1>
-				<div><img src='images/circleoflight.jpg' height='384' /></div>
-				<button onClick={this.handleRetake}>Retake</button>
-				<button onClick={this.handleSave}>Save</button>
+			<div className='absolute center fill-width fill-height valign-wrapper'>
+				<div className='valign center'>
+					<h1>Here is your photo</h1>
+					<div><img src={this.props.resultPhoto} height='384' /></div>
+					<button onClick={this.handleRetake}>Retake</button>
+					<button onClick={this.handleShare}>Share</button>
+				</div>
 			</div>
 		)
 	},
 	handleRetake: function() {
-		dispatcher.dispatch({
-			type: 'gotoStep',
-			step: 'two',
-		});
+		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	},
-	handleSave: function() {
+	handleShare: function() {
+		dispatcher.dispatch({ type: 'showShareForm' });
+	},
+});
+
+StepFour.Form = React.createClass({
+	image: null,
+	styles: {
+		container: {
+			background: 'rgba(0, 0, 0, 0.8)',
+			zIndex: '-1',
+		},
+		show: {
+			background: 'rgba(0, 0, 0, 0.8)',
+			zIndex: '1',
+		},
+	},
+	render: function() {
+		if (this.props.show) {
+			return (
+				<form className='absolute fill-width fill-height valign-wrapper' onSubmit={this.handleSubmit} style={this.styles.show}>
+					<div className='valign center'>
+						<h1>Share through Email</h1>
+						<input type='email' name='email' required />
+						<div>
+							<input type='button' onClick={this.handleCancel} value='Cancel' />
+							<button type='submit'>Submit</button>
+						</div>
+					</div>
+				</form>
+			)
+		}
+		return (
+			<form className='absolute fill-width fill-height valign-wrapper' onSubmit={this.handleSubmit} style={this.styles.container}>
+				<div className='valign center'>
+					<h1>Share through Email</h1>
+					<input type='email' name='email' required />
+					<div>
+						<input type='button' onClick={this.handleCancel} value='Cancel' />
+						<button type='submit'>Submit</button>
+					</div>
+				</div>
+			</form>
+		)
+	},
+	handleCancel: function(evt) {
+		dispatcher.dispatch({ type: 'hideShareForm' });
+	},
+	handleSubmit: function(evt) {
+		evt.preventDefault();
+
+		var form = evt.target;
+		$.ajax({
+			url: '/share',
+			method: 'POST',
+			data: $(form).serialize(),
+		}).done(function(resp) {
+			alert('We\'ve emailed the photograph to your email address!');
+			dispatcher.dispatch({ type: 'hideShareForm' });
+		}).fail(function(resp) {
+			alert('Sorry! We encountered problem while sending the photograph to your email address.');
+			dispatcher.dispatch({ type: 'hideShareForm' });
+		});
 	},
 });
 
