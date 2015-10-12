@@ -357,6 +357,7 @@ StepThree.Counter = React.createClass({
 		if (counter > 0) {
 			this.setState({ counter: counter - 1 });
 		} else {
+			clearTimeout(this.counterID);
 			this.capture();
 		}
 	},
@@ -373,7 +374,7 @@ StepThree.Counter = React.createClass({
 		});
 	},
 	handleCancel: function handleCancel() {
-		dispatcher.dispatch({ type: "gotoStep", step: "two" });
+		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	}
 });
 

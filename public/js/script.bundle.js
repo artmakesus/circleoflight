@@ -403,6 +403,7 @@
 			if (counter > 0) {
 				this.setState({ counter: counter - 1 });
 			} else {
+				clearTimeout(this.counterID);
 				this.capture();
 			}
 		},
@@ -419,7 +420,7 @@
 			});
 		},
 		handleCancel: function handleCancel() {
-			dispatcher.dispatch({ type: "gotoStep", step: "two" });
+			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 		}
 	});
 

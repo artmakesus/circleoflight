@@ -154,7 +154,7 @@ var StepTwo = React.createClass({
 	render: function() {
 		return (
 			<div>
-				<Header tab="one" />
+				<Header tab='one' />
 				<StepTwo.Gallery />
 			</div>
 		)
@@ -224,7 +224,7 @@ var StepThree = React.createClass({
 	render: function() {
 		return (
 			<div>
-				<Header tab="two" />
+				<Header tab='two' />
 				<StepThree.Counter image={this.props.image} />
 			</div>
 		)
@@ -266,6 +266,7 @@ StepThree.Counter = React.createClass({
 		if (counter > 0) {
 			this.setState({ counter: counter - 1 });
 		} else {
+			clearTimeout(this.counterID);
 			this.capture();
 		}
 	},
@@ -282,7 +283,7 @@ StepThree.Counter = React.createClass({
 		});
 	},
 	handleCancel: function() {
-		dispatcher.dispatch({ type: "gotoStep", step: "two" });
+		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	},
 });
 
@@ -290,7 +291,7 @@ var StepFour = React.createClass({
 	render: function() {
 		return (
 			<div className='relative fill-height'>
-				<Header className='absolute' tab="three" />
+				<Header className='absolute' tab='three' />
 				<StepFour.Result resultPhoto={this.props.resultPhoto} />
 				<StepFour.Form show={this.state.showShareForm} />
 			</div>
