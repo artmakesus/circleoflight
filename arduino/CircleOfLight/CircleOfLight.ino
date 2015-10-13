@@ -31,7 +31,7 @@ int colCounter = 0;
 int ledCounter = 0;
 
 const unsigned int STEP_DELAY = 15;
-unsigned int stepLowTime = 0;
+unsigned long stepLowTime = 0;
 unsigned int stepsDone = 0;
 bool bReceivedCommand = false;
 bool bMayStepHigh = false;
