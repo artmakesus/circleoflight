@@ -1,15 +1,46 @@
 var getPixels = require('get-pixels');
 var serialPort = require('serialport');
+var SerialPort = require('serialport').SerialPort;
 var arduinoPort;
+
+serialPort.list(function (err, ports) {
+	if (err) {
+		console.log(err);
+		return;
+	}
+
+	console.log('Getting a list of serial ports..');
+	ports.forEach(function(port) {
+		console.log(port.comName + ' ' + port.manufacturer);
+		if (port.manufacturer.indexOf('Arduino') >= 0) {
+			console.log('Found Arduino!');
+			arduinoPort = new SerialPort(port.comName, { baudrate: 57600 }, false);
+			arduinoPort.open(function(err) {
+				if (err) {
+					console.log(err);
+					return;
+				}
+				console.log('Connected to Arduino!');
+			});
+		}
+	});
+});
 
 const NUM_ROWS = 200;
 const NUM_LEDS = 142;
 const BPR = NUM_LEDS * 3; // bytes per row
 
+var capturing = false;
+
 function capture(image, cb) {
+	capturing = true;
+
 	getPixels(image, function(err, pixels) {
 		if (err) {
-			cb(err);
+			if (capturing) {
+				capturing = false;
+				cb(err);
+			}
 			return;
 		}
 		console.log('Painting ' + image);
@@ -59,56 +90,62 @@ function capture(image, cb) {
 			r += Math.PI * 0.01;  // Rotate 1.8deg
 		}
 
-		writeToArduino(bytes, cb);
+		if (arduinoPort) {
+			if (arduinoPort.isOpen()) {
+				writeToArduino(bytes, cb);
+			}
+		}
 	});
 }
 
 function writeToArduino(bytes, cb) {
-	serialPort.list(function (err, ports) {
+	var writeAndDrain = function(bs, callback) {
+		arduinoPort.write(bs, function(err) {
+			if (err) {
+				console.log(err);
+				cb(err);
+				return;
+			}
+			arduinoPort.drain(callback);
+		});
+	};
+
+	writeAndDrain('A', function(err) {
 		if (err) {
-			cb(err);
+			if (capturing) {
+				capturing = false;
+				cb(err);
+			}
 			return;
 		}
+	});
 
-		console.log('Getting a list of serial ports..');
-		ports.forEach(function(port) {
-			console.log(port.comName);
-			if (port.manufacturer.indexOf('Arduino') >= 0) {
-				arduinoPort = new serialPort.SerialPort(port.comName, { baudrate: 115200 });
-				arduinoPort.on('open', function () {
-					arduinoPort.write('A', function(err, results) {
-						if (err) {
+	var counter = 0;
+	arduinoPort.on('data', function(data) {
+		for (var i = 0; i < data.length; i++) {
+			if (counter < NUM_ROWS) {
+				var bs = bytes.slice(counter * BPR, (counter+1) * BPR);
+				writeAndDrain(bs, function(err) {
+					if (err) {
+						if (capturing) {
+							capturing = false;
 							cb(err);
-							return;
 						}
-
-						var writeAndDrain = function(bs, callback) {
-							arduinoPort.write(bs, function(err) {
-								arduinoPort.drain(callback);
-							});
-						};
-
-						var counter = 0;
-						arduinoPort.on('data', function(data) {
-							console.log('Count is ' + counter);
-							if (counter < NUM_ROWS) {
-								var bs = bytes.slice(counter * BPR, (counter+1) * BPR);
-								writeAndDrain(bs, function(err) {
-									if (err) {
-										cb(err);
-										return;
-									}
-								});
-								counter++;
-							} else {
-								cb();
-								return;
-							}
-						});
-					});
+						return;
+					}
 				});
+				counter++;
+				console.log('Count is ' + counter);
+
+				if (counter >= NUM_ROWS) {
+					if (capturing) {
+						capturing = false;
+						cb();
+					}
+					return;
+				}
 			}
-		});
+		}
 	});
 }
 

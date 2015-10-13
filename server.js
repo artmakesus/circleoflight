@@ -36,9 +36,8 @@ app.post('/capture', function(r, w) {
 	capture('public' + path.sep + r.body.image, function(err) {
 		if (!err) {
 			// TODO: replace dummy
-			w.send('images/circleoflight.jpg');
+			w.send('images/circleoflight.png');
 		} else {
-			console.log(err);
 			w.sendStatus(500);
 		}
 	});

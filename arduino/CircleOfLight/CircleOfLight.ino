@@ -10,21 +10,18 @@
 
 #include <APA102.h>
 
-// Define which pins to use.
-const uint8_t dataPin = 11; //led
-const uint8_t clockPin = 12;	//led
+// LED Strip
+const uint16_t LED_COUNT = 142;
+const uint8_t dataPin = 11;
+const uint8_t clockPin = 12;
+APA102<dataPin, clockPin> ledStrip; // Create an object for writing to the LED strip.
 
-const uint8_t dirPin = 8;	//motor
-const uint8_t stepPin = 9; //motor
-
-// Create an object for writing to the LED strip.
-APA102<dataPin, clockPin> ledStrip;
-
-// Set the number of LEDs to control.
-const uint16_t ledCount = 142;
+// Motor
+const uint8_t dirPin = 8;
+const uint8_t stepPin = 9;
 
 // Create a buffer for holding the colors (3 bytes per color).
-rgb_color colors[ledCount];
+rgb_color colors[LED_COUNT];
 
 // Set the brightness to use (the maximum is 31).
 const uint8_t brightness = 1;
@@ -33,15 +30,15 @@ int color[3] = {0, 0, 0}; //color array
 int colCounter = 0;
 int ledCounter = 0;
 
-bool gotCommand = false;
-const unsigned int stepDelay = 10;
-unsigned int elapsedTimeSinceStepLow = 0;
-bool mayStepHigh = false;
+const unsigned int STEP_DELAY = 15;
+unsigned int stepLowTime = 0;
 unsigned int stepsDone = 0;
-bool waitingForNextPixelRow = false;
+bool bReceivedCommand = false;
+bool bMayStepHigh = false;
+bool bShouldWaitForNextPixelRow = false;
 
 void setup() {
-	Serial.begin(115200); // Start serial communication at 115200 bps
+	Serial.begin(57600);
 	while (Serial.available()) {
 		Serial.read();
 	}
@@ -52,7 +49,7 @@ void setup() {
 }
 
 void loop() {
-	if (!gotCommand) {
+	if (!bReceivedCommand) {
 		waitForCommand();
 	} else {
 		doCommand();
@@ -64,33 +61,31 @@ void waitForCommand() {
 		;
 	
 	if (Serial.read() == 'A') {
-		gotCommand = true;
+		bReceivedCommand = true;
 	}
 }
 
 void doCommand() {
-	if (waitingForNextPixelRow) {
-		while (Serial.available())
-			;
+	if (bShouldWaitForNextPixelRow) {
+		waitForNextPixelRow();
 	}
 
-	if (!mayStepHigh) {
+	if (!bMayStepHigh) {
 		digitalWrite(stepPin, LOW);
-		mayStepHigh = true;
-		elapsedTimeSinceStepLow = millis();
+		bMayStepHigh = true;
+		stepLowTime = millis();
 	}
 
 	readAndDisplayPixels();
 
-	bool isTimeToStepHigh = (millis() - elapsedTimeSinceStepLow) > stepDelay;
-	if (isTimeToStepHigh && mayStepHigh) {	
+	bool isTimeToStepHigh = (millis() - stepLowTime) >= STEP_DELAY;
+	if (isTimeToStepHigh && bMayStepHigh) {	
 		digitalWrite(stepPin, HIGH);
-		mayStepHigh = false;
+		bMayStepHigh = false;
 
 		stepsDone++;
 		if (stepsDone >= 200) {
-			stepsDone = 0;
-			gotCommand = false;
+			reset();
 		} else {
 			askForNextPixelRow();
 		}
@@ -98,7 +93,7 @@ void doCommand() {
 }
 
 void readAndDisplayPixels() {
-	while (Serial.available() > 0) { // If data is available to read
+	while (Serial.available()) {
 		color[colCounter] = Serial.read();
 		colCounter++;
 
@@ -110,16 +105,40 @@ void readAndDisplayPixels() {
 			colCounter = 0;
 		}
 
-		if (ledCounter > ledCount - 1) {				
-			ledStrip.write(colors, ledCount, brightness);
+		if (ledCounter > LED_COUNT - 1) {				
+			ledStrip.write(colors, LED_COUNT, brightness);
 			ledCounter = 0;
 			break;
 		}
 	}
-} // end of readFromSerial()
+} // end of readAndDisplayPixels()
 
 void askForNextPixelRow() {
-	Serial.println("A");
+	Serial.write('B');
 	Serial.flush();
-	waitingForNextPixelRow = true;
+	bShouldWaitForNextPixelRow = true;
+}
+
+void waitForNextPixelRow() {
+	while (!Serial.available())
+		;
+
+	bShouldWaitForNextPixelRow = false;
+}
+
+void reset() {
+	Serial.write('B');
+	Serial.flush();
+
+	colCounter = 0;
+	ledCounter = 0;
+	stepsDone = 0;
+	stepLowTime = 0;
+	bReceivedCommand = false;
+	bMayStepHigh = false;
+	bShouldWaitForNextPixelRow = false;
+
+	while (Serial.available()) {
+		Serial.read();
+	}
 }
