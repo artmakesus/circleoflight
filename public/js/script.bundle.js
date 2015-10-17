@@ -56,6 +56,24 @@
 
 	var dispatcher = new Flux.Dispatcher();
 
+	window.fbAsyncInit = function () {
+		FB.init({
+			appId: '1504892069826912',
+			xfbml: true,
+			version: 'v2.5'
+		});
+	};
+	(function (d, s, id) {
+		var js,
+		    fjs = d.getElementsByTagName(s)[0];
+		if (d.getElementById(id)) {
+			return;
+		}
+		js = d.createElement(s);js.id = id;
+		js.src = "//connect.facebook.net/en_US/sdk.js";
+		fjs.parentNode.insertBefore(js, fjs);
+	})(document, 'script', 'facebook-jssdk');
+
 	function m(a, b) {
 		if (!a) {
 			a = {};
@@ -66,6 +84,16 @@
 		}
 
 		return update(a, { $merge: b });
+	}
+
+	function dataURItoBlob(dataURI) {
+		var byteString = atob(dataURI.split(',')[1]);
+		var ab = new ArrayBuffer(byteString.length);
+		var ia = new Uint8Array(ab);
+		for (var i = 0; i < byteString.length; i++) {
+			ia[i] = byteString.charCodeAt(i);
+		}
+		return new Blob([ab], { type: 'image/png' });
 	}
 
 	var App = React.createClass({
@@ -80,7 +108,7 @@
 				case 'two':
 					elem = React.createElement(StepTwo, null);break;
 				case 'three':
-					elem = React.createElement(StepThree, { image: this.state.image });break;
+					elem = React.createElement(StepThree, { selectedImage: this.state.selectedImage });break;
 				case 'four':
 					elem = React.createElement(StepFour, { resultPhoto: this.state.resultPhoto });break;
 			}
@@ -88,16 +116,16 @@
 			return elem;
 		},
 		getInitialState: function getInitialState() {
-			return { step: 'one', image: null, resultPhoto: null };
+			return { step: 'four', selectedImage: null, resultPhoto: null };
 		},
 		componentDidMount: function componentDidMount() {
 			this.listenerID = dispatcher.register((function (payload) {
 				switch (payload.type) {
 					case 'gotoStep':
-						if (payload.step == 'three' && !payload.image || payload.step == 'four' && !payload.resultPhoto) {
+						if (payload.step == 'three' && !payload.selectedImage || payload.step == 'four' && !payload.resultPhoto) {
 							break;
 						}
-						this.setState({ step: payload.step, image: payload.image, resultPhoto: payload.resultPhoto });
+						this.setState({ step: payload.step, selectedImage: payload.selectedImage, resultPhoto: payload.resultPhoto });
 						break;
 				}
 			}).bind(this));
@@ -484,7 +512,7 @@
 				alert('You must select an image first!');
 				return;
 			}
-			dispatcher.dispatch({ type: 'gotoStep', step: 'three', image: this.props.selectedImagePath });
+			dispatcher.dispatch({ type: 'gotoStep', step: 'three', selectedImage: this.props.selectedImagePath });
 		},
 		handleBack: function handleBack() {
 			dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
@@ -504,7 +532,7 @@
 		render: function render() {
 			var elem;
 			if (this.state.ready) {
-				elem = React.createElement(StepThree.GoingToTakePhoto, { image: this.props.image });
+				elem = React.createElement(StepThree.GoingToTakePhoto, { selectedImage: this.props.selectedImage });
 			} else {
 				elem = React.createElement(StepThree.GettingReady, null);
 			}
@@ -680,9 +708,8 @@
 			$.ajax({
 				url: '/capture',
 				method: 'POST',
-				data: { image: this.props.image }
+				data: { image: this.props.selectedImage }
 			}).done(function (resp) {
-				console.log(resp);
 				dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: resp });
 			}).fail(function (resp) {
 				dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
@@ -706,7 +733,7 @@
 		render: function render() {
 			var elem;
 			if (this.state.showShareForm) {
-				elem = React.createElement(StepFour.Form, { show: this.state.showShareForm });
+				elem = React.createElement(StepFour.Form, { resultPhoto: this.props.resultPhoto, show: this.state.showShareForm });
 			} else {
 				elem = React.createElement(StepFour.Result, { resultPhoto: this.props.resultPhoto });
 			}
@@ -775,7 +802,7 @@
 				React.createElement(
 					'div',
 					{ style: this.styles.imageContainer },
-					React.createElement('img', { src: this.props.resultPhoto, style: this.styles.image })
+					React.createElement('img', { id: 'photo', src: this.props.resultPhoto, style: this.styles.image })
 				),
 				React.createElement(
 					'div',
@@ -826,14 +853,16 @@
 				height: '128px',
 				backgroundColor: '#3B5998',
 				backgroundImage: 'url(icons/facebook/facebook-128.png)',
-				margin: '0 16px'
+				margin: '0 16px',
+				cursor: 'pointer'
 			},
 			twitter: {
 				width: '128px',
 				height: '128px',
 				backgroundColor: '#00ACED',
 				backgroundImage: 'url(icons/twitter/twitter-128.png)',
-				margin: '0 16px'
+				margin: '0 16px',
+				cursor: 'pointer'
 			},
 			emailContainer: {
 				display: 'flex',
@@ -884,8 +913,8 @@
 				React.createElement(
 					'div',
 					{ style: this.styles.socialContainer },
-					React.createElement('div', { style: this.styles.facebook }),
-					React.createElement('div', { style: this.styles.twitter })
+					React.createElement('div', { style: this.styles.facebook, onClick: this.handleFacebookShare }),
+					React.createElement('div', { style: this.styles.twitter, onClick: this.handleTwitterShare })
 				),
 				React.createElement(
 					'div',
@@ -909,6 +938,23 @@
 				)
 			);
 		},
+		getInitialState: function getInitialState() {
+			return { photoURL: null };
+		},
+		componentDidMount: function componentDidMount() {
+			var image = new Image();
+			image.onload = (function () {
+				var canvas = document.createElement('canvas');
+				canvas.width = image.naturalWidth;
+				canvas.height = image.naturalHeight;
+				canvas.getContext('2d').drawImage(image, 0, 0);
+				this.setState({ photoURL: canvas.toDataURL('image/png') });
+			}).bind(this);
+			image.src = this.props.resultPhoto;
+		},
+		componentWillUnmount: function componentWillUnmount() {
+			FB.logout();
+		},
 		handleDone: function handleDone(evt) {
 			dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
 		},
@@ -931,7 +977,50 @@
 				alert('Sorry! We encountered problem while sending the photograph to your email address.');
 				dispatcher.dispatch({ type: 'hideShareForm' });
 			});
-		}
+		},
+		handleFacebookShare: function handleFacebookShare() {
+			FB.logout();
+
+			FB.login((function (response) {
+				if (response.authResponse) {
+					var blob;
+					try {
+						blob = dataURItoBlob(this.state.photoURL);
+					} catch (e) {
+						alert('Failed to convert image to blob');
+						return;
+					}
+					var accessToken = FB.getAccessToken();
+
+					var fd = new FormData();
+					fd.append("access_token", accessToken);
+					fd.append("source", blob);
+					fd.append("message", "Just took this photo using Circle Of Light!");
+					try {
+						$.ajax({
+							url: "https://graph.facebook.com/me/photos?access_token=" + accessToken,
+							type: "POST",
+							data: fd,
+							processData: false,
+							contentType: false,
+							cache: false,
+							success: function success(data) {
+								alert('Shared the photo on Facebook!');
+							},
+							error: function error(shr, status, data) {
+								console.log("error " + data + " Status " + shr.status);
+								alert('Failed to share the photo on Facebook.');
+							}
+						});
+					} catch (e) {
+						console.log(e);
+					}
+				} else {
+					alert('Failed to login to Facebook.');
+				}
+			}).bind(this), { scope: 'publish_actions' });
+		},
+		handleTwitterShare: function handleTwitterShare() {}
 	});
 
 	ReactDOM.render(React.createElement(App, null), document.getElementById('root'));

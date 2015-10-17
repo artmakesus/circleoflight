@@ -8,6 +8,21 @@ var update   = require('react-addons-update');
 
 var dispatcher = new Flux.Dispatcher();
 
+window.fbAsyncInit = function() {
+	FB.init({
+		appId      : '1504892069826912',
+		xfbml      : true,
+		version    : 'v2.5'
+	});
+};
+(function(d, s, id){
+ var js, fjs = d.getElementsByTagName(s)[0];
+	 if (d.getElementById(id)) {return;}
+	 js = d.createElement(s); js.id = id;
+	 js.src = "//connect.facebook.net/en_US/sdk.js";
+	 fjs.parentNode.insertBefore(js, fjs);
+ }(document, 'script', 'facebook-jssdk'));
+
 function m(a, b) {
 	if (!a) {
 		a = {};
@@ -20,6 +35,16 @@ function m(a, b) {
 	return update(a, { $merge: b });
 }
 
+function dataURItoBlob(dataURI) {
+	var byteString = atob(dataURI.split(',')[1]);
+	var ab = new ArrayBuffer(byteString.length);
+	var ia = new Uint8Array(ab);
+	for (var i = 0; i < byteString.length; i++) {
+		ia[i] = byteString.charCodeAt(i);
+	}
+	return new Blob([ab], { type: 'image/png' });
+}
+
 var App = React.createClass({
 	render: function() {
 		var elem;
@@ -30,7 +55,7 @@ var App = React.createClass({
 		case 'two':
 			elem = <StepTwo />; break;
 		case 'three':
-			elem = <StepThree image={this.state.image} />; break;
+			elem = <StepThree selectedImage={this.state.selectedImage} />; break;
 		case 'four':
 			elem = <StepFour resultPhoto={this.state.resultPhoto} />; break;
 		}
@@ -38,17 +63,17 @@ var App = React.createClass({
 		return elem;
 	},
 	getInitialState: function() {
-		return { step: 'one', image: null, resultPhoto: null }
+		return { step: 'four', selectedImage: null, resultPhoto: null }
 	},
 	componentDidMount: function() {
 		this.listenerID = dispatcher.register(function(payload) {
 			switch (payload.type) {
 			case 'gotoStep':
-				if ((payload.step == 'three' && !payload.image) ||
+				if ((payload.step == 'three' && !payload.selectedImage) ||
 				    (payload.step == 'four' && !payload.resultPhoto)) {
 					break;
 				}
-				this.setState({ step: payload.step, image: payload.image, resultPhoto: payload.resultPhoto });
+				this.setState({ step: payload.step, selectedImage: payload.selectedImage, resultPhoto: payload.resultPhoto });
 				break;
 			}
 		}.bind(this));
@@ -367,7 +392,7 @@ StepTwo.Buttons = React.createClass({
 			alert('You must select an image first!');
 			return;
 		}
-		dispatcher.dispatch({ type: 'gotoStep', step: 'three', image: this.props.selectedImagePath });
+		dispatcher.dispatch({ type: 'gotoStep', step: 'three', selectedImage: this.props.selectedImagePath });
 	},
 	handleBack: function() {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
@@ -385,7 +410,7 @@ var StepThree = React.createClass({
 	render: function() {
 		var elem;
 		if (this.state.ready) {
-			elem = <StepThree.GoingToTakePhoto image={this.props.image} />
+			elem = <StepThree.GoingToTakePhoto selectedImage={this.props.selectedImage} />
 		} else {
 			elem = <StepThree.GettingReady />
 		}
@@ -527,9 +552,8 @@ StepThree.GoingToTakePhoto = React.createClass({
 		$.ajax({
 			url: '/capture',
 			method: 'POST',
-			data: { image: this.props.image },
+			data: { image: this.props.selectedImage },
 		}).done(function(resp) {
-			console.log(resp);
 			dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: resp });
 		}).fail(function(resp) {
 			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
@@ -551,7 +575,7 @@ var StepFour = React.createClass({
 	render: function() {
 		var elem;
 		if (this.state.showShareForm) {
-			elem = <StepFour.Form show={this.state.showShareForm} />
+			elem = <StepFour.Form resultPhoto={this.props.resultPhoto} show={this.state.showShareForm} />
 		} else {
 			elem = <StepFour.Result resultPhoto={this.props.resultPhoto} />
 		}
@@ -611,7 +635,7 @@ StepFour.Result = React.createClass({
 			<div style={this.styles.container}>
 				<h1 style={this.styles.title}>HERE IS YOUR PHOTO</h1>
 				<div style={this.styles.imageContainer}>
-					<img src={this.props.resultPhoto} style={this.styles.image} />
+					<img id='photo' src={this.props.resultPhoto} style={this.styles.image} />
 				</div>
 				<div style={this.styles.buttonsContainer}>
 					<button onClick={this.handleRetake}>RETAKE</button>
@@ -652,6 +676,7 @@ StepFour.Form = React.createClass({
 			backgroundColor: '#3B5998',
 			backgroundImage: 'url(icons/facebook/facebook-128.png)',
 			margin: '0 16px',
+			cursor: 'pointer',
 		},
 		twitter: {
 			width: '128px',
@@ -659,6 +684,7 @@ StepFour.Form = React.createClass({
 			backgroundColor: '#00ACED',
 			backgroundImage: 'url(icons/twitter/twitter-128.png)',
 			margin: '0 16px',
+			cursor: 'pointer',
 		},
 		emailContainer: {
 			display: 'flex',
@@ -700,8 +726,8 @@ StepFour.Form = React.createClass({
 					<h1>SHARE YOUR PHOTO WITH FRIENDS</h1>
 				</div>
 				<div style={this.styles.socialContainer}>
-					<div style={this.styles.facebook} />
-					<div style={this.styles.twitter} />
+					<div style={this.styles.facebook} onClick={this.handleFacebookShare} />
+					<div style={this.styles.twitter} onClick={this.handleTwitterShare} />
 				</div>
 				<div style={this.styles.emailContainer}>
 					<input type='email' name='email' placeholder=' EMAIL ADDRESS' style={this.styles.emailInput} required />
@@ -713,6 +739,23 @@ StepFour.Form = React.createClass({
 				</div>
 			</form>
 		)
+	},
+	getInitialState: function() {
+		return { photoURL: null };
+	},
+	componentDidMount: function() {
+		var image = new Image();
+		image.onload = function() {
+			var canvas = document.createElement('canvas');
+			canvas.width = image.naturalWidth;
+			canvas.height = image.naturalHeight;
+			canvas.getContext('2d').drawImage(image, 0, 0);
+			this.setState({ photoURL: canvas.toDataURL('image/png') });
+		}.bind(this);
+		image.src = this.props.resultPhoto;
+	},
+	componentWillUnmount: function() {
+		FB.logout();
 	},
 	handleDone: function(evt) {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
@@ -736,6 +779,50 @@ StepFour.Form = React.createClass({
 			alert('Sorry! We encountered problem while sending the photograph to your email address.');
 			dispatcher.dispatch({ type: 'hideShareForm' });
 		});
+	},
+	handleFacebookShare: function() {
+		FB.logout();
+
+		FB.login(function(response) {
+			if (response.authResponse) {
+				var blob;
+				try {
+					blob = dataURItoBlob(this.state.photoURL);
+				} catch (e) {
+					alert('Failed to convert image to blob');
+					return;
+				}
+				var accessToken = FB.getAccessToken();
+
+				var fd = new FormData();
+				fd.append("access_token", accessToken);
+				fd.append("source", blob);
+				fd.append("message", "Just took this photo using Circle Of Light!");
+				try {
+					$.ajax({
+						url: "https://graph.facebook.com/me/photos?access_token=" + accessToken,
+						type: "POST",
+						data: fd,
+						processData: false,
+						contentType: false,
+						cache: false,
+						success: function (data) {
+							alert('Shared the photo on Facebook!');
+						},
+						error: function (shr, status, data) {
+							console.log("error " + data + " Status " + shr.status);
+								alert('Failed to share the photo on Facebook.');
+						},
+					});
+				} catch (e) {
+					console.log(e);
+				}
+			} else {
+				alert('Failed to login to Facebook.');
+			}
+		}.bind(this), { scope: 'publish_actions' });
+	},
+	handleTwitterShare: function() {
 	},
 });
 
