@@ -4,9 +4,10 @@ var fs = require('fs');
 var path = require('path');
 var express = require('express');
 var bodyParser = require('body-parser');
-var capture = require('./capture.js');
-
 var app = express();
+var capture = require('./capture.js');
+var email = require('./email.js');
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static('public'));
 
@@ -63,6 +64,15 @@ app.post('/capture', function(r, w) {
 
 app.post('/share', function(r, w) {
 	w.sendStatus(200);
+});
+
+app.post('/email', function(r, w) {
+	var em = r.body.email;
+	if (typeof(em) === 'string' && em.length > 3) {
+		email(em);
+	} else {
+		w.sendStatus(400);
+	}
 });
 
 var server = app.listen(8080, function() {

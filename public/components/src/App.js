@@ -63,7 +63,7 @@ var App = React.createClass({
 		return elem;
 	},
 	getInitialState: function() {
-		return { step: 'four', selectedImage: null, resultPhoto: null }
+		return { step: 'one', selectedImage: null, resultPhoto: null }
 	},
 	componentDidMount: function() {
 		this.listenerID = dispatcher.register(function(payload) {
@@ -653,7 +653,6 @@ StepFour.Result = React.createClass({
 });
 
 StepFour.Form = React.createClass({
-	image: null,
 	styles: {
 		container: {
 			display: 'flex',
@@ -721,7 +720,7 @@ StepFour.Form = React.createClass({
 	},
 	render: function() {
 		return (
-			<form onSubmit={this.handleSubmit} style={this.styles.container}>
+			<form ref='form' onSubmit={function(evt) { evt.preventDefault(); }} style={this.styles.container}>
 				<div style={this.styles.titleContainer}>
 					<h1>SHARE YOUR PHOTO WITH FRIENDS</h1>
 				</div>
@@ -731,10 +730,10 @@ StepFour.Form = React.createClass({
 				</div>
 				<div style={this.styles.emailContainer}>
 					<input type='email' name='email' placeholder=' EMAIL ADDRESS' style={this.styles.emailInput} required />
-					<input type='submit' value='SUBMIT' style={this.styles.emailButton} />
+					<input type='submit' value='SUBMIT' style={this.styles.emailButton} onClick={this.handleEmail} />
 				</div>
 				<div style={this.styles.completeContainer}>
-					<button type='submit' onClick={this.handleDone}>DONE</button>
+					<button onClick={this.handleDone}>DONE</button>
 					<button onClick={this.handleCancel}>CANCEL</button>
 				</div>
 			</form>
@@ -750,12 +749,9 @@ StepFour.Form = React.createClass({
 			canvas.width = image.naturalWidth;
 			canvas.height = image.naturalHeight;
 			canvas.getContext('2d').drawImage(image, 0, 0);
-			this.setState({ photoURL: canvas.toDataURL('image/png') });
+			this.setState({ photoURL: canvas.toDataURL('image/jpg') });
 		}.bind(this);
 		image.src = this.props.resultPhoto;
-	},
-	componentWillUnmount: function() {
-		FB.logout();
 	},
 	handleDone: function(evt) {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
@@ -763,42 +759,37 @@ StepFour.Form = React.createClass({
 	handleCancel: function(evt) {
 		dispatcher.dispatch({ type: 'hideShareForm' });
 	},
-	handleSubmit: function(evt) {
+	handleEmail: function(evt) {
 		evt.preventDefault();
 
-		var form = evt.target;
-
+		var data = $(this.refs.form).serialize()
 		$.ajax({
-			url: '/share',
+			url: '/email',
 			method: 'POST',
-			data: $(form).serialize(),
+			data: data,
 		}).done(function(resp) {
 			alert('We\'ve emailed the photograph to your email address!');
-			dispatcher.dispatch({ type: 'hideShareForm' });
 		}).fail(function(resp) {
 			alert('Sorry! We encountered problem while sending the photograph to your email address.');
-			dispatcher.dispatch({ type: 'hideShareForm' });
 		});
 	},
 	handleFacebookShare: function() {
-		FB.logout();
+		var share = function() {
+			FB.login(function(response) {
+				if (response.authResponse) {
+					var blob;
+					try {
+						blob = dataURItoBlob(this.state.photoURL);
+					} catch (e) {
+						alert('Failed to convert image to blob');
+						return;
+					}
+					var accessToken = FB.getAccessToken();
 
-		FB.login(function(response) {
-			if (response.authResponse) {
-				var blob;
-				try {
-					blob = dataURItoBlob(this.state.photoURL);
-				} catch (e) {
-					alert('Failed to convert image to blob');
-					return;
-				}
-				var accessToken = FB.getAccessToken();
-
-				var fd = new FormData();
-				fd.append("access_token", accessToken);
-				fd.append("source", blob);
-				fd.append("message", "Just took this photo using Circle Of Light!");
-				try {
+					var fd = new FormData();
+					fd.append("access_token", accessToken);
+					fd.append("source", blob);
+					fd.append("message", "Just took this photo using Circle Of Light!");
 					$.ajax({
 						url: "https://graph.facebook.com/me/photos?access_token=" + accessToken,
 						type: "POST",
@@ -814,15 +805,24 @@ StepFour.Form = React.createClass({
 								alert('Failed to share the photo on Facebook.');
 						},
 					});
-				} catch (e) {
-					console.log(e);
+				} else {
+					// Didn't login to Facebook
 				}
+			}.bind(this), { scope: 'publish_actions' });
+		}.bind(this);
+
+		FB.getLoginStatus(function(response) {
+			if (response.status === 'connected') {
+				FB.logout(function(response) {
+					share();
+				});
 			} else {
-				alert('Failed to login to Facebook.');
+				share();
 			}
-		}.bind(this), { scope: 'publish_actions' });
+		});
 	},
 	handleTwitterShare: function() {
+		
 	},
 });
 
