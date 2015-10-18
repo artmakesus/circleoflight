@@ -7,6 +7,7 @@ var GPhoto = new gphoto2.GPhoto2();
 var getPixels = require('get-pixels');
 var serialPort = require('serialport');
 var SerialPort = require('serialport').SerialPort;
+var fs = require('fs');
 var arduinoPort;
 var sendImageTimer;
 
@@ -67,8 +68,8 @@ function capture(image, cb) {
 				return;
 			}
 
-			fs.writeFileSync(__dirname + '/public/photos/' + randomFileName() + '.jpg', data);
-			console.log(data);
+			fs.writeFileSync(__dirname + '/public/photos/' + Number(new Date()) + '.jpg', data);
+			//console.log(data);
 		});
 
 		capturing = true;
