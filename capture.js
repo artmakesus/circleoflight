@@ -2,6 +2,8 @@ const NUM_ROWS = 200;
 const NUM_LEDS = 142;
 const BPR = NUM_LEDS * 3; // bytes per row
 
+const PRODUCTION = false;
+
 var gphoto2 = require('gphoto2');
 var GPhoto = new gphoto2.GPhoto2();
 var getPixels = require('get-pixels');
@@ -29,7 +31,7 @@ serialPort.list(function (err, ports) {
 		console.log(port.comName + ' ' + port.manufacturer);
 		if (port.manufacturer.indexOf('Arduino') >= 0) {
 			console.log('Found Arduino!');
-			arduinoPort = new SerialPort(port.comName, { baudrate: 57600 }, false);
+			arduinoPort = new SerialPort(port.comName, { baudrate: 115200 }, false);
 			arduinoPort.open(function(err) {
 				if (err) {
 					console.log(err);
@@ -51,33 +53,39 @@ function capture(image, cb) {
 		return;
 	}
 
-	GPhoto.list(function (list) {
-		if (list.length === 0){
-			console.log("No camera found");
-			return;
-		}
-		var camera = list[0];
-		console.log('Found', camera.model);
-
-		camera.takePicture({ download: true }, function (err, data) {
-			if (err) {
-				if (sendImageTimer) {
-					clearTimeout(sendImageTimer);
-				}
-				capturing = false;
+	if (PRODUCTION) {
+		GPhoto.list(function (list) {
+			if (list.length === 0){
+				console.log("No camera found");
 				return;
 			}
+			var camera = list[0];
+			console.log('Found', camera.model);
 
-			fs.writeFileSync(__dirname + '/public/photos/' + Number(new Date()) + '.jpg', data);
-			//console.log(data);
+			var output = __dirname + '/public/photos/' + Number(new Date()) + '.jpg'; 
+			camera.takePicture({ download: true }, function (err, data) {
+				if (err) {
+					if (sendImageTimer) {
+						clearTimeout(sendImageTimer);
+					}
+					capturing = false;
+					return;
+				}
+
+				fs.writeFileSync(output, data);
+			});
+
+			capturing = true;
+			sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, output), 1000);
 		});
-
+	} else {
+		var output = 'public/photos/' + Number(new Date()) + '.jpg'; 
 		capturing = true;
-		sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb), 1000);
-	});
+		sendImageToArduino(image, cb, output);
+	}
 }
 
-function sendImageToArduino(image, cb) {
+function sendImageToArduino(image, cb, output) {
 	getPixels(image, function(err, pixels) {
 		if (err) {
 			if (capturing) {
@@ -87,6 +95,15 @@ function sendImageToArduino(image, cb) {
 			return;
 		}
 		console.log('Painting ' + image);
+
+		if (PRODUCTION == false) {
+			console.log('Creating dummy photo at', output);
+			fs.readFile(image, function(err, data) {
+				if (!err) {
+					fs.writeFile(output, data);
+				}
+			});
+		}
 
 		// Image dimension
 		var width = pixels.shape[0];
@@ -135,13 +152,13 @@ function sendImageToArduino(image, cb) {
 
 		if (arduinoPort) {
 			if (arduinoPort.isOpen()) {
-				writeToSerial(bytes, cb);
+				writeToSerial(bytes, cb, output);
 			}
 		}
 	});
 }
 
-function writeToSerial(bytes, cb) {
+function writeToSerial(bytes, cb, output) {
 	var writeAndDrain = function(bs, callback) {
 		arduinoPort.write(bs, function(err) {
 			if (err) {
@@ -183,21 +200,13 @@ function writeToSerial(bytes, cb) {
 				if (counter >= NUM_ROWS) {
 					if (capturing) {
 						capturing = false;
-						cb();
+						cb(undefined, output);
 					}
 					return;
 				}
 			}
 		}
 	});
-}
-
-function randomFileName() {
-	var name = '';
-	for (var i = 0; i < 64; i++) {
-		name += String.fromCharCode(Math.floor(26 * Math.random()));
-	}
-	return name;
 }
 
 module.exports = capture;

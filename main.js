@@ -8,7 +8,7 @@ var app = express();
 var capture = require('./capture.js');
 var email = require('./email.js');
 
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({ extended: false, limit: '50mb' }));
 app.use(express.static('public'));
 
 app.get('/photos', function(r, w) {
@@ -49,15 +49,15 @@ app.get('/images', function(r, w) {
 });
 
 app.post('/capture', function(r, w) {
-	capture('public' + path.sep + r.body.image, function(err) {
+	capture('public' + path.sep + r.body.image, function(err, output) {
 		if (production) {
 			if (!err) {
-				w.send(r.body.image);
+				w.send(output);
 			} else {
 				w.sendStatus(500);
 			}
 		} else {
-			w.send(r.body.image);
+			w.send(output);
 		}
 	});
 });
@@ -68,8 +68,19 @@ app.post('/share', function(r, w) {
 
 app.post('/email', function(r, w) {
 	var em = r.body.email;
+	var photo = r.body.photo;
 	if (typeof(em) === 'string' && em.length > 3) {
-		email(em);
+		var filepath = path.sep + 'public' + path.sep + photo;
+		email(em, filepath, function(err, body) {
+			if (err) {
+				console.log(err);
+				w.sendStatus(400);
+			} else {
+				console.log('Sending the photo');
+				w.sendStatus(200);
+			}
+		});
+		console.log(filepath);
 	} else {
 		w.sendStatus(400);
 	}

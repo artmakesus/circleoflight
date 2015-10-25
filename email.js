@@ -1,27 +1,21 @@
-var nodemailer = require('nodemailer');
-var ses = require('nodemailer-ses-transport');
-var transporter = nodemailer.createTransport(ses({
-	accessKeyId: 'ACCESSKEYTBC',
-	secretAccessKey: 'SECRETTBC'
-}));
+var path = require('path');
+var Mailgun = require('mailgun-js');
+var mailgun = new Mailgun({
+	apiKey: 'key-330cae01093376b2f392f5deccecac22',
+	domain: 'sandbox1637498c75904e02aecee8f9d8d4ba8d.mailgun.org'
+});
 
-const FROM = 'artmakesus@gmail.com';
-const SUBJECT = 'Your Photo!';
-const TEXT = 'Here\'s your photo captured by the Circle Of Light!';
+function send(recipient, photo, cb) {
+	var filepath = path.join(__dirname, photo);
+	var data = {
+		from: 'postmaster@sandbox1637498c75904e02aecee8f9d8d4ba8d.mailgun.org',
+		to: recipient,
+		subject: 'Circle Of Light',
+		text: 'Here\'s the photo you took using Circle of Light!',
+		attachment: filepath,
+	};
 
-function sendEmail(recipientEmail, photo) {
-	transporter.sendMail({
-		from: FROM,
-		to: recipientEmail,
-		subject: SUBJECT,
-		text: TEXT,
-		attachments: [
-			{
-			    filename: 'photo.jpg',
-			    path: photo,  
-			},
-		],
-	});
+	mailgun.messages().send(data, cb);
 }
 
-module.exports = sendEmail;
+module.exports = send;

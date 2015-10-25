@@ -553,8 +553,9 @@ StepThree.GoingToTakePhoto = React.createClass({
 			url: '/capture',
 			method: 'POST',
 			data: { image: this.props.selectedImage },
-		}).done(function(resp) {
-			dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: resp });
+		}).done(function(filename) {
+			filename = filename.substring(7, filename.length); 
+			dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: filename });
 		}).fail(function(resp) {
 			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 		});
@@ -730,6 +731,7 @@ StepFour.Form = React.createClass({
 				</div>
 				<div style={this.styles.emailContainer}>
 					<input type='email' name='email' placeholder=' EMAIL ADDRESS' style={this.styles.emailInput} required />
+					<input type='hidden' name='photo' value={this.props.resultPhoto} />
 					<input type='submit' value='SUBMIT' style={this.styles.emailButton} onClick={this.handleEmail} />
 				</div>
 				<div style={this.styles.completeContainer}>

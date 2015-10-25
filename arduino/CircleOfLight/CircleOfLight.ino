@@ -30,7 +30,7 @@ int color[3] = {0, 0, 0}; //color array
 int colCounter = 0;
 int ledCounter = 0;
 
-const unsigned int STEP_DELAY = 15;
+const unsigned int STEP_DELAY = 20;
 unsigned long stepLowTime = 0;
 unsigned int stepsDone = 0;
 bool bReceivedCommand = false;
@@ -38,7 +38,7 @@ bool bMayStepHigh = false;
 bool bShouldWaitForNextPixelRow = false;
 
 void setup() {
-	Serial.begin(57600);
+	Serial.begin(115200);
 	while (Serial.available()) {
 		Serial.read();
 	}
@@ -92,8 +92,7 @@ void doCommand() {
 	}
 }
 
-void readAndDisplayPixels() {
-	while (Serial.available()) {
+void readAndDisplayPixels() { while (Serial.available()) {
 		color[colCounter] = Serial.read();
 		colCounter++;
 
@@ -129,6 +128,15 @@ void waitForNextPixelRow() {
 void reset() {
 	Serial.write('B');
 	Serial.flush();
+
+	delay(3000);
+	digitalWrite(dirPin, LOW);
+	for (int i = 0; i < 200; i++) {
+		digitalWrite(stepPin, LOW);
+		delay(20);
+		digitalWrite(stepPin, HIGH);
+	}
+	digitalWrite(dirPin, HIGH);
 
 	colCounter = 0;
 	ledCounter = 0;
