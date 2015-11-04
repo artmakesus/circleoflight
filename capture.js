@@ -3,8 +3,6 @@ const NUM_LEDS = 142;
 const BPR = NUM_LEDS * 3; // bytes per row
 const PRODUCTION = true;
 
-var gphoto2 = require('gphoto2');
-var GPhoto = new gphoto2.GPhoto2();
 var getPixels = require('get-pixels');
 var serialPort = require('serialport');
 var SerialPort = require('serialport').SerialPort;
@@ -53,30 +51,14 @@ function capture(image, cb) {
 	}
 
 	if (PRODUCTION) {
-		GPhoto.list(function (list) {
-			if (list.length === 0){
-				console.log("No camera found");
-				return;
+		var filename = 'public/photos/' + Number(new Date()) + '.jpg';
+		cp.exec('gphoto2 --capture-image-and-download --filename ' + filename, function(error) {
+			if (error) {
+				cb(error);
+			} else {
+				capturing = true;
+				sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, output), 1000);
 			}
-			var camera = list[0];
-			console.log('Found', camera.model);
-
-			var output = 'public/photos/' + Number(new Date()) + '.jpg'; 
-			camera.takePicture({ download: true }, function (err, data) {
-				if (err) {
-					if (sendImageTimer) {
-						clearTimeout(sendImageTimer);
-					}
-					capturing = false;
-					return;
-				}
-
-				fs.writeFileSync(output, data);
-			});
-			console.log(camera);
-
-			capturing = true;
-			sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, output), 1000);
 		});
 	} else {
 		var output = 'public/photos/' + Number(new Date()) + '.jpg'; 

@@ -31,7 +31,6 @@
     "express": "^4.13.3",
     "flux": "^2.1.1",
     "get-pixels": "^3.2.3",
-    "gphoto2": "^0.1.7",
     "jquery": "^2.1.4",
     "mailgun-js": "^0.7.2",
     "merge": "^1.2.0",
