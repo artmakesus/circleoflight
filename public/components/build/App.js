@@ -409,7 +409,8 @@ StepTwo.Gallery = React.createClass({
 			marginBottom: '8px',
 			border: '8px solid black',
 			cursor: 'pointer',
-			pointerEvents: 'none'
+			pointerEvents: 'none',
+			imageRendering: 'pixelated'
 		},
 		selectedImage: {
 			border: '8px solid #2cb976'
@@ -650,7 +651,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 		);
 	},
 	getInitialState: function getInitialState() {
-		return { counter: 1 };
+		return { counter: 5 };
 	},
 	componentDidMount: function componentDidMount() {
 		this.counterID = window.setInterval(this.countDown, 1000);
@@ -676,7 +677,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 			filename = filename.substring(7, filename.length);
 			setTimeout(function () {
 				dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: filename });
-			}, 3000);
+			}, 5000);
 		}).fail(function (resp) {
 			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 		});
@@ -751,7 +752,8 @@ StepFour.Result = React.createClass({
 		},
 		image: {
 			border: '4px solid white',
-			maxHeight: '384px'
+			maxHeight: '384px',
+			imageRendering: 'pixelated'
 		},
 		buttonsContainer: {
 			WebkitFlex: '0 0 20%',
@@ -841,7 +843,8 @@ StepFour.Form = React.createClass({
 			backgroundColor: '#00ACED',
 			backgroundImage: 'url(icons/twitter/twitter-128.png)',
 			margin: '0 16px',
-			cursor: 'pointer'
+			cursor: 'pointer',
+			opacity: 0.2
 		},
 		emailContainer: {
 			WebkitFlex: '0 0 30%',
@@ -882,6 +885,10 @@ StepFour.Form = React.createClass({
 			color: 'black',
 			cursor: 'pointer'
 		},
+		sendingEmail: {
+			background: 'black',
+			color: 'white'
+		},
 		completeContainer: {
 			WebkitFlex: '0 0 20%',
 			msFlex: '0 0 20%',
@@ -913,9 +920,9 @@ StepFour.Form = React.createClass({
 			React.createElement(
 				'div',
 				{ className: 'flex', style: this.styles.emailContainer },
-				React.createElement('input', { type: 'email', name: 'email', placeholder: ' EMAIL ADDRESS', style: this.styles.emailInput, required: true }),
+				React.createElement('input', { type: 'email', name: 'email', placeholder: ' OR SEND TO EMAIL ADDRESS', style: this.styles.emailInput, required: true }),
 				React.createElement('input', { type: 'hidden', name: 'photo', value: this.props.resultPhoto }),
-				React.createElement('input', { type: 'submit', value: 'SUBMIT', style: this.styles.emailButton, onClick: this.handleEmail })
+				React.createElement('input', { type: 'submit', value: this.state.sendingEmail ? 'Sending..' : 'SUBMIT', style: m(this.styles.emailButton, this.state.sendingEmail && this.styles.sendingEmail), onClick: this.handleEmail })
 			),
 			React.createElement(
 				'div',
@@ -934,7 +941,7 @@ StepFour.Form = React.createClass({
 		);
 	},
 	getInitialState: function getInitialState() {
-		return { photoURL: null };
+		return { photoURL: null, sendingEmail: false };
 	},
 	componentDidMount: function componentDidMount() {
 		var image = new Image();
@@ -956,16 +963,20 @@ StepFour.Form = React.createClass({
 	handleEmail: function handleEmail(evt) {
 		evt.preventDefault();
 
+		this.setState({ sendingEmail: true });
+
 		var data = $(this.refs.form).serialize();
 		$.ajax({
 			url: '/email',
 			method: 'POST',
 			data: data
-		}).done(function (resp) {
+		}).done((function (resp) {
+			this.setState({ sendingEmail: false });
 			alert('We\'ve emailed the photograph to your email address!');
-		}).fail(function (resp) {
+		}).bind(this)).fail((function (resp) {
+			this.setState({ sendingEmail: false });
 			alert('Sorry! We encountered problem while sending the photograph to your email address.');
-		});
+		}).bind(this));
 	},
 	handleFacebookShare: function handleFacebookShare() {
 		var share = (function () {

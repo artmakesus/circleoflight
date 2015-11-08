@@ -1,12 +1,14 @@
 const NUM_ROWS = 800;
 const NUM_LEDS = 142;
 const BPR = NUM_LEDS * 3; // bytes per row
+const ANGLE_OFFSET = Math.PI * 0.5;
 const PRODUCTION = true;
 
 var getPixels = require('get-pixels');
 var serialPort = require('serialport');
 var SerialPort = require('serialport').SerialPort;
 var fs = require('fs');
+var cp = require('child_process');
 var arduinoPort;
 var sendImageTimer;
 
@@ -54,20 +56,22 @@ function capture(image, cb) {
 		var filename = 'public/photos/' + Number(new Date()) + '.jpg';
 		cp.exec('gphoto2 --capture-image-and-download --filename ' + filename, function(error) {
 			if (error) {
+				console.log(error);
 				cb(error);
-			} else {
-				capturing = true;
-				sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, output), 1000);
+				capturing = false;
 			}
 		});
-	} else {
-		var output = 'public/photos/' + Number(new Date()) + '.jpg'; 
+
+		sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, filename), 1000);
 		capturing = true;
-		sendImageToArduino(image, cb, output);
+	} else {
+		var filename = 'public/photos/' + Number(new Date()) + '.jpg'; 
+		capturing = true;
+		sendImageToArduino(image, cb, filename);
 	}
 }
 
-function sendImageToArduino(image, cb, output) {
+function sendImageToArduino(image, cb, filename) {
 	getPixels(image, function(err, pixels) {
 		if (err) {
 			if (capturing) {
@@ -79,10 +83,10 @@ function sendImageToArduino(image, cb, output) {
 		console.log('Painting ' + image);
 
 		if (PRODUCTION == false) {
-			console.log('Creating dummy photo at', output);
+			console.log('Creating dummy photo at', filename);
 			fs.readFile(image, function(err, data) {
 				if (!err) {
-					fs.writeFile(output, data);
+					fs.writeFile(filename, data);
 				}
 			});
 		}
@@ -113,8 +117,8 @@ function sendImageToArduino(image, cb, output) {
 			var py = halfHeight;
 
 			for (var i = 1; i < NUM_LEDS; i++) { // Starts at 1 to skip the center pixel which is always the same
-				px += Math.cos(r) * radius;
-				py += Math.sin(r) * radius;
+				px += Math.cos(r + ANGLE_OFFSET % (2 * Math.PI)) * radius;
+				py += Math.sin(r + ANGLE_OFFSET % (2 * Math.PI)) * radius;
 
 				var x = Math.round(px);
 				var y = Math.round(py);
@@ -134,13 +138,13 @@ function sendImageToArduino(image, cb, output) {
 
 		if (arduinoPort) {
 			if (arduinoPort.isOpen()) {
-				writeToSerial(bytes, cb, output);
+				writeToSerial(bytes, cb, filename);
 			}
 		}
 	});
 }
 
-function writeToSerial(bytes, cb, output) {
+function writeToSerial(bytes, cb, filename) {
 	var writeAndDrain = function(bs, callback) {
 		arduinoPort.write(bs, function(err) {
 			if (err) {
@@ -182,7 +186,7 @@ function writeToSerial(bytes, cb, output) {
 				if (counter >= NUM_ROWS) {
 					if (capturing) {
 						capturing = false;
-						cb(undefined, output);
+						cb(undefined, filename);
 					}
 					return;
 				}

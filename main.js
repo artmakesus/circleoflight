@@ -15,7 +15,7 @@ app.get('/photos', function(r, w) {
 	fs.readdir('public/photos/', function(err, files) {
 		if (!err) {
 			files = files.map(function(file) { return 'photos/' + file; });
-			w.send(files);
+			w.send(files.reverse());
 		} else {
 			w.sendStatus(500);
 			console.log(err);
@@ -76,7 +76,7 @@ app.post('/email', function(r, w) {
 				console.log(err);
 				w.sendStatus(400);
 			} else {
-				console.log('Sending the photo to', + em);
+				console.log('Sending the photo to', em);
 				w.sendStatus(200);
 			}
 		});

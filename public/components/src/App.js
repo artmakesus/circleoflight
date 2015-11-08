@@ -350,6 +350,7 @@ StepTwo.Gallery = React.createClass({
 			border: '8px solid black',
 			cursor: 'pointer',
 			pointerEvents: 'none',
+			imageRendering: 'pixelated',
 		},
 		selectedImage: {
 			border: '8px solid #2cb976',
@@ -540,7 +541,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 		)
 	},
 	getInitialState: function() {
-		return { counter: 1 };
+		return { counter: 5 };
 	},
 	componentDidMount: function() {
 		this.counterID = window.setInterval(this.countDown, 1000);
@@ -566,7 +567,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 			filename = filename.substring(7, filename.length); 
 			setTimeout(function() {
 				dispatcher.dispatch({ type: 'gotoStep', step: 'four', resultPhoto: filename });
-			}, 3000);
+			}, 5000);
 		}).fail(function(resp) {
 			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 		});
@@ -638,6 +639,7 @@ StepFour.Result = React.createClass({
 		image: {
 			border: '4px solid white',
 			maxHeight: '384px',
+			imageRendering: 'pixelated',
 		},
 		buttonsContainer: {
 			WebkitFlex: '0 0 20%',
@@ -710,6 +712,7 @@ StepFour.Form = React.createClass({
 			backgroundImage: 'url(icons/twitter/twitter-128.png)',
 			margin: '0 16px',
 			cursor: 'pointer',
+			opacity: 0.2,
 		},
 		emailContainer: {
 			WebkitFlex: '0 0 30%',
@@ -750,6 +753,10 @@ StepFour.Form = React.createClass({
 			color: 'black',
 			cursor: 'pointer',
 		},
+		sendingEmail: {
+			background: 'black',
+			color: 'white',
+		},
 		completeContainer: {
 			WebkitFlex: '0 0 20%',
 			msFlex: '0 0 20%',
@@ -768,9 +775,9 @@ StepFour.Form = React.createClass({
 					<div style={this.styles.twitter} onClick={this.handleTwitterShare} />
 				</div>
 				<div className='flex' style={this.styles.emailContainer}>
-					<input type='email' name='email' placeholder=' EMAIL ADDRESS' style={this.styles.emailInput} required />
+					<input type='email' name='email' placeholder=' OR SEND TO EMAIL ADDRESS' style={this.styles.emailInput} required />
 					<input type='hidden' name='photo' value={this.props.resultPhoto} />
-					<input type='submit' value='SUBMIT' style={this.styles.emailButton} onClick={this.handleEmail} />
+					<input type='submit' value={this.state.sendingEmail ? 'Sending..' : 'SUBMIT'} style={m(this.styles.emailButton, this.state.sendingEmail && this.styles.sendingEmail)} onClick={this.handleEmail} />
 				</div>
 				<div style={this.styles.completeContainer}>
 					<button onClick={this.handleDone}>DONE</button>
@@ -780,7 +787,7 @@ StepFour.Form = React.createClass({
 		)
 	},
 	getInitialState: function() {
-		return { photoURL: null };
+		return { photoURL: null, sendingEmail: false };
 	},
 	componentDidMount: function() {
 		var image = new Image();
@@ -802,16 +809,20 @@ StepFour.Form = React.createClass({
 	handleEmail: function(evt) {
 		evt.preventDefault();
 
+		this.setState({ sendingEmail: true });
+
 		var data = $(this.refs.form).serialize()
 		$.ajax({
 			url: '/email',
 			method: 'POST',
 			data: data,
 		}).done(function(resp) {
+			this.setState({ sendingEmail: false });
 			alert('We\'ve emailed the photograph to your email address!');
-		}).fail(function(resp) {
+		}.bind(this)).fail(function(resp) {
+			this.setState({ sendingEmail: false });
 			alert('Sorry! We encountered problem while sending the photograph to your email address.');
-		});
+		}.bind(this));
 	},
 	handleFacebookShare: function() {
 		var share = function() {

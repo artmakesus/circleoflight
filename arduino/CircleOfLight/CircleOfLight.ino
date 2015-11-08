@@ -30,7 +30,7 @@ APA102<DATA_PIN, CLOCK_PIN> ledStrip; // Create an object for writing to the LED
 rgb_color colors[LED_COUNT];
 
 // Set the brightness to use (the maximum is 31).
-const uint8_t BRIGHTNESS = 12;
+const uint8_t BRIGHTNESS = 3;
 
 int color[3] = {0, 0, 0}; //color array
 int colCounter = 0;
