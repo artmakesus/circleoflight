@@ -5,6 +5,7 @@ var path = require('path');
 var express = require('express');
 var bodyParser = require('body-parser');
 var app = express();
+var Bing = require('node-bing-api')({ accKey: "jG9xrWCJ3Jhbw6CT1O34XRTdorfOaQgoqt1Sdw3jw6A" });
 var capture = require('./capture.js');
 var email = require('./email.js');
 
@@ -49,7 +50,11 @@ app.get('/images', function(r, w) {
 });
 
 app.post('/capture', function(r, w) {
-	capture('public' + path.sep + r.body.image, function(err, output) {
+	var image = r.body.image;
+	if (image.indexOf('http') > 0) {
+		image = 'public' + path.sep + image;
+	}
+	capture(image, function(err, output) {
 		if (PRODUCTION) {
 			if (!err) {
 				w.send(output);
@@ -60,6 +65,26 @@ app.post('/capture', function(r, w) {
 			w.send(output);
 		}
 	});
+});
+
+app.get('/search', function(r, w) {
+	if (r.query.keyword) {
+		Bing.images(r.query.keyword, {
+			imageFilters: {
+				size: 'medium',
+				aspect: 'square',
+				color: 'color',
+			},
+		}, function(error, res, body) {
+			if (error) {
+				w.sendStatus(404);
+			} else {
+				w.send(body.d.results);
+			}
+		});
+	} else {
+		w.sendStatus(404);
+	}
 });
 
 app.post('/share', function(r, w) {

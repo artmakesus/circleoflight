@@ -1,5 +1,3 @@
-'use strict';
-
 var $ = require('jquery');
 var React = require('react');
 var ReactDOM = require('react-dom');
@@ -53,7 +51,7 @@ function dataURItoBlob(dataURI) {
 var App = React.createClass({
 	displayName: 'App',
 
-	render: function render() {
+	render: function () {
 		var elem;
 
 		switch (this.state.step) {
@@ -69,10 +67,10 @@ var App = React.createClass({
 
 		return elem;
 	},
-	getInitialState: function getInitialState() {
-		return { step: 'one', selectedImage: null, resultPhoto: null };
+	getInitialState: function () {
+		return { step: 'two', selectedImage: null, resultPhoto: null };
 	},
-	componentDidMount: function componentDidMount() {
+	componentDidMount: function () {
 		this.listenerID = dispatcher.register((function (payload) {
 			switch (payload.type) {
 				case 'gotoStep':
@@ -84,7 +82,7 @@ var App = React.createClass({
 			}
 		}).bind(this));
 	},
-	componentWillUnmount: function componentWillUnmount() {
+	componentWillUnmount: function () {
 		dispatcher.unregister(this.listenerID);
 	}
 });
@@ -100,7 +98,7 @@ var StepOne = React.createClass({
 			background: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(images/bg.jpg) center / cover'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex', style: this.styles.container },
@@ -129,7 +127,7 @@ StepOne.Examples = React.createClass({
 			pointerEvents: 'none'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex align-center justify-center', style: this.styles.container },
@@ -146,10 +144,10 @@ StepOne.Examples = React.createClass({
 			)
 		);
 	},
-	getInitialState: function getInitialState() {
+	getInitialState: function () {
 		return { photos: [] };
 	},
-	componentDidMount: function componentDidMount() {
+	componentDidMount: function () {
 		$.ajax({
 			url: '/photos',
 			method: 'GET'
@@ -175,7 +173,7 @@ StepOne.Intro = React.createClass({
 			textAlign: 'center'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex align-center', style: this.styles.container },
@@ -200,7 +198,7 @@ StepOne.Intro = React.createClass({
 			)
 		);
 	},
-	handleClick: function handleClick() {
+	handleClick: function () {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	}
 });
@@ -231,7 +229,7 @@ var Header = React.createClass({
 			color: '#2cb976'
 		}
 	},
-	render: function render() {
+	render: function () {
 		var tab = this.props.tab;
 		var column = this.styles.column;
 		var text = this.styles.text;
@@ -281,12 +279,10 @@ var StepTwo = React.createClass({
 			flex: '0 0 100%'
 		}
 	},
-	render: function render() {
+	render: function () {
 		var category = this.state.category;
 		var categories = this.state.categories;
-		if (categories.length == 0) {
-			return null;
-		}
+		categories.push({ name: "search" });
 
 		var path = categories.length > 0 ? categories[category].path : '';
 		var images = categories.length > 0 ? categories[category].images : [];
@@ -295,14 +291,14 @@ var StepTwo = React.createClass({
 			{ className: 'flex column', style: this.styles.container },
 			React.createElement(Header, { tab: 'one' }),
 			React.createElement(StepTwo.Tabs, { category: categories[category].name, categories: categories }),
-			React.createElement(StepTwo.Gallery, { path: path, images: images, selectedImagePath: this.state.imagePath }),
+			React.createElement(StepTwo.Gallery, { category: categories[category].name, path: path, images: images, selectedImagePath: this.state.imagePath }),
 			React.createElement(StepTwo.Buttons, { selectedImagePath: this.state.imagePath })
 		);
 	},
-	getInitialState: function getInitialState() {
+	getInitialState: function () {
 		return { category: 0, categories: [], imagePath: null };
 	},
-	componentDidMount: function componentDidMount() {
+	componentDidMount: function () {
 		$.ajax({
 			url: '/images',
 			method: 'GET'
@@ -339,7 +335,7 @@ var StepTwo = React.createClass({
 			}
 		}).bind(this));
 	},
-	componentWillUnmount: function componentWillUnmount() {
+	componentWillUnmount: function () {
 		dispatcher.unregister(this.listenerID);
 	}
 });
@@ -367,7 +363,7 @@ StepTwo.Tabs = React.createClass({
 			borderBottom: '8px solid #2cb976'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex row', style: this.styles.container },
@@ -381,7 +377,7 @@ StepTwo.Tabs = React.createClass({
 			}).bind(this))
 		);
 	},
-	handleClick: function handleClick(category) {
+	handleClick: function (category) {
 		dispatcher.dispatch({ type: 'changeCategory', category: category });
 	}
 });
@@ -416,7 +412,10 @@ StepTwo.Gallery = React.createClass({
 			border: '8px solid #2cb976'
 		}
 	},
-	render: function render() {
+	render: function () {
+		if (this.props.category == 'search') {
+			return React.createElement(StepTwo.Search, { selectedImage: this.props.selectedImagePath });
+		}
 		return React.createElement(
 			'div',
 			{ className: 'flex row', style: this.styles.container },
@@ -431,7 +430,111 @@ StepTwo.Gallery = React.createClass({
 			}).bind(this))
 		);
 	},
-	handleClick: function handleClick(imagePath) {
+	handleClick: function (imagePath) {
+		dispatcher.dispatch({ type: 'clickedImage', imagePath: imagePath });
+	}
+});
+
+StepTwo.Search = React.createClass({
+	displayName: 'Search',
+
+	render: function () {
+		return React.createElement(
+			'div',
+			{ className: 'flex column', style: this.styles.container },
+			React.createElement('input', { type: 'text', placeholder: 'SEARCH THE WEB', style: this.styles.search, onChange: this.handleChange }),
+			React.createElement(StepTwo.Search.Results, { images: this.state.images, selectedImage: this.props.selectedImage })
+		);
+	},
+	getInitialState: function () {
+		return { images: [] };
+	},
+	componentDidMount: function () {},
+	styles: {
+		container: {
+			WebkitFlex: '1 1 70%',
+			msFlex: '1 1 70%',
+			flex: '1 1 70%',
+			margin: '0 16px',
+			overflowY: 'hidden'
+		},
+		search: {
+			color: '#111111',
+			padding: '16px',
+			width: '50%',
+			margin: '0 auto',
+			fontWeight: 'bold',
+			textTransform: 'uppercase'
+		}
+	},
+	handleChange: function (event) {
+		clearTimeout(this.searchTimerID);
+
+		if (event.target.value.length <= 2) {
+			return;
+		}
+
+		this.searchTimerID = setTimeout((function () {
+			$.ajax({
+				url: '/search',
+				method: 'GET',
+				data: { keyword: event.target.value },
+				dataType: 'json'
+			}).done((function (data) {
+				this.setState({ images: data });
+			}).bind(this)).fail((function (resp) {
+				this.setState({ images: [] });
+			}).bind(this));
+		}).bind(this), 1000);
+	}
+});
+
+StepTwo.Search.Results = React.createClass({
+	displayName: 'Results',
+
+	render: function () {
+		return React.createElement(
+			'div',
+			{ className: 'flex row', style: this.styles.container },
+			this.props.images.map((function (image, i) {
+				var imagePath = image.MediaUrl;
+				var thumbnailPath = image.Thumbnail.MediaUrl;
+				var imageStyle = m(this.styles.image, this.props.selectedImage == imagePath && this.styles.selectedImage);
+				return React.createElement(
+					'div',
+					{ key: image.ID, className: 'flex row align-start justify-between', style: this.styles.imageContainer, onClick: this.handleClick.bind(this, imagePath) },
+					React.createElement('img', { src: thumbnailPath, style: imageStyle })
+				);
+			}).bind(this))
+		);
+	},
+	styles: {
+		container: {
+			WebkitFlex: '1 1 70%',
+			msFlex: '1 1 70%',
+			flex: '1 1 70%',
+			flexWrap: 'wrap',
+			padding: '16px',
+			overflowY: 'scroll'
+		},
+		imageContainer: {
+			WebkitFlex: '0 1 20%',
+			msFlex: '0 1 20%',
+			flex: '0 1 20%'
+		},
+		image: {
+			maxHeight: '256px',
+			marginBottom: '8px',
+			border: '8px solid black',
+			cursor: 'pointer',
+			pointerEvents: 'none',
+			imageRendering: 'pixelated'
+		},
+		selectedImage: {
+			border: '8px solid #2cb976'
+		}
+	},
+	handleClick: function (imagePath) {
 		dispatcher.dispatch({ type: 'clickedImage', imagePath: imagePath });
 	}
 });
@@ -445,7 +548,7 @@ StepTwo.Buttons = React.createClass({
 			margin: '0 auto'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ style: this.styles.container },
@@ -466,17 +569,17 @@ StepTwo.Buttons = React.createClass({
 			)
 		);
 	},
-	handleSurprise: function handleSurprise() {
+	handleSurprise: function () {
 		dispatcher.dispatch({ type: 'surprise' });
 	},
-	handleNext: function handleNext() {
+	handleNext: function () {
 		if (!this.props.selectedImagePath) {
 			alert('You must select an image first!');
 			return;
 		}
 		dispatcher.dispatch({ type: 'gotoStep', step: 'three', selectedImage: this.props.selectedImagePath });
 	},
-	handleBack: function handleBack() {
+	handleBack: function () {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
 	}
 });
@@ -491,7 +594,7 @@ var StepThree = React.createClass({
 			flex: '0 0 100%'
 		}
 	},
-	render: function render() {
+	render: function () {
 		var elem;
 		if (this.state.ready) {
 			elem = React.createElement(StepThree.GoingToTakePhoto, { selectedImage: this.props.selectedImage });
@@ -505,10 +608,10 @@ var StepThree = React.createClass({
 			elem
 		);
 	},
-	getInitialState: function getInitialState() {
+	getInitialState: function () {
 		return { ready: false };
 	},
-	componentDidMount: function componentDidMount() {
+	componentDidMount: function () {
 		this.listenerID = dispatcher.register((function (payload) {
 			switch (payload.type) {
 				case 'setReady':
@@ -517,7 +620,7 @@ var StepThree = React.createClass({
 			}
 		}).bind(this));
 	},
-	componentWillUnmount: function componentWillUnmount() {
+	componentWillUnmount: function () {
 		dispatcher.unregister(this.listenerID);
 	}
 });
@@ -557,7 +660,7 @@ StepThree.GettingReady = React.createClass({
 			textAlign: 'center'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex column', style: this.styles.container },
@@ -591,10 +694,10 @@ StepThree.GettingReady = React.createClass({
 			)
 		);
 	},
-	handleReady: function handleReady() {
+	handleReady: function () {
 		dispatcher.dispatch({ type: 'setReady' });
 	},
-	handleBack: function handleBack() {
+	handleBack: function () {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	}
 });
@@ -626,7 +729,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 			margin: 0
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex column', style: this.styles.container },
@@ -650,16 +753,16 @@ StepThree.GoingToTakePhoto = React.createClass({
 			)
 		);
 	},
-	getInitialState: function getInitialState() {
+	getInitialState: function () {
 		return { counter: 5 };
 	},
-	componentDidMount: function componentDidMount() {
-		this.counterID = window.setInterval(this.countDown, 1000);
+	componentDidMount: function () {
+		this.counterID = setInterval(this.countDown, 1000);
 	},
-	componentWillUnmount: function componentWillUnmount() {
+	componentWillUnmount: function () {
 		clearTimeout(this.counterID);
 	},
-	countDown: function countDown() {
+	countDown: function () {
 		var counter = this.state.counter;
 		if (counter > 0) {
 			this.setState({ counter: counter - 1 });
@@ -668,7 +771,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 			this.capture();
 		}
 	},
-	capture: function capture() {
+	capture: function () {
 		$.ajax({
 			url: '/capture',
 			method: 'POST',
@@ -682,7 +785,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 			dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 		});
 	},
-	handleCancel: function handleCancel() {
+	handleCancel: function () {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	}
 });
@@ -698,7 +801,7 @@ var StepFour = React.createClass({
 			flex: '0 0 100%'
 		}
 	},
-	render: function render() {
+	render: function () {
 		var elem;
 		if (this.state.showShareForm) {
 			elem = React.createElement(StepFour.Form, { resultPhoto: this.props.resultPhoto, show: this.state.showShareForm });
@@ -712,10 +815,10 @@ var StepFour = React.createClass({
 			elem
 		);
 	},
-	getInitialState: function getInitialState() {
+	getInitialState: function () {
 		return { showShareForm: false };
 	},
-	componentDidMount: function componentDidMount() {
+	componentDidMount: function () {
 		this.listenerID = dispatcher.register((function (payload) {
 			switch (payload.type) {
 				case 'showShareForm':
@@ -725,7 +828,7 @@ var StepFour = React.createClass({
 			}
 		}).bind(this));
 	},
-	componentWillUnmount: function componentWillUnmount() {
+	componentWillUnmount: function () {
 		dispatcher.unregister(this.listenerID);
 	}
 });
@@ -762,7 +865,7 @@ StepFour.Result = React.createClass({
 			textAlign: 'center'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'div',
 			{ className: 'flex column', style: this.styles.container },
@@ -792,10 +895,10 @@ StepFour.Result = React.createClass({
 			)
 		);
 	},
-	handleRetake: function handleRetake() {
+	handleRetake: function () {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'two' });
 	},
-	handleShare: function handleShare() {
+	handleShare: function () {
 		dispatcher.dispatch({ type: 'showShareForm' });
 	}
 });
@@ -896,7 +999,7 @@ StepFour.Form = React.createClass({
 			textAlign: 'center'
 		}
 	},
-	render: function render() {
+	render: function () {
 		return React.createElement(
 			'form',
 			{ ref: 'form', className: 'flex', style: this.styles.container, onSubmit: function (evt) {
@@ -940,10 +1043,10 @@ StepFour.Form = React.createClass({
 			)
 		);
 	},
-	getInitialState: function getInitialState() {
+	getInitialState: function () {
 		return { photoURL: null, sendingEmail: false };
 	},
-	componentDidMount: function componentDidMount() {
+	componentDidMount: function () {
 		var image = new Image();
 		image.onload = (function () {
 			var canvas = document.createElement('canvas');
@@ -954,13 +1057,13 @@ StepFour.Form = React.createClass({
 		}).bind(this);
 		image.src = this.props.resultPhoto;
 	},
-	handleDone: function handleDone(evt) {
+	handleDone: function (evt) {
 		dispatcher.dispatch({ type: 'gotoStep', step: 'one' });
 	},
-	handleCancel: function handleCancel(evt) {
+	handleCancel: function (evt) {
 		dispatcher.dispatch({ type: 'hideShareForm' });
 	},
-	handleEmail: function handleEmail(evt) {
+	handleEmail: function (evt) {
 		evt.preventDefault();
 
 		this.setState({ sendingEmail: true });
@@ -978,7 +1081,7 @@ StepFour.Form = React.createClass({
 			alert('Sorry! We encountered problem while sending the photograph to your email address.');
 		}).bind(this));
 	},
-	handleFacebookShare: function handleFacebookShare() {
+	handleFacebookShare: function () {
 		var share = (function () {
 			FB.login((function (response) {
 				if (response.authResponse) {
@@ -1002,10 +1105,10 @@ StepFour.Form = React.createClass({
 						processData: false,
 						contentType: false,
 						cache: false,
-						success: function success(data) {
+						success: function (data) {
 							alert('Shared the photo on Facebook!');
 						},
-						error: function error(shr, status, data) {
+						error: function (shr, status, data) {
 							console.log("error " + data + " Status " + shr.status);
 							alert('Failed to share the photo on Facebook.');
 						}
@@ -1026,7 +1129,7 @@ StepFour.Form = React.createClass({
 			}
 		});
 	},
-	handleTwitterShare: function handleTwitterShare() {}
+	handleTwitterShare: function () {}
 });
 
 ReactDOM.render(React.createElement(App, null), document.getElementById('root'));

@@ -53,6 +53,24 @@ function capture(image, cb) {
 	}
 
 	if (PRODUCTION) {
+		prepareImage(image, cb)
+	} else {
+		var filename = 'public/photos/' + Number(new Date()) + '.jpg'; 
+		capturing = true;
+		sendImageToArduino(image, cb, filename);
+	}
+}
+
+function prepareImage(image, cb) {
+	getPixels(image, function(err, pixels) {
+		if (err) {
+			if (capturing) {
+				capturing = false;
+				cb(err);
+			}
+			return;
+		}
+
 		var filename = 'public/photos/' + Number(new Date()) + '.jpg';
 		cp.exec('gphoto2 --capture-image-and-download --filename ' + filename, function(error) {
 			if (error) {
@@ -62,86 +80,76 @@ function capture(image, cb) {
 			}
 		});
 
-		sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, filename), 1000);
+		sendImageTimer = setTimeout(sendImageToArduino.bind(this, image, cb, filename, pixels), 1000);
 		capturing = true;
-	} else {
-		var filename = 'public/photos/' + Number(new Date()) + '.jpg'; 
-		capturing = true;
-		sendImageToArduino(image, cb, filename);
-	}
+	});
 }
 
-function sendImageToArduino(image, cb, filename) {
-	getPixels(image, function(err, pixels) {
-		if (err) {
-			if (capturing) {
-				capturing = false;
-				cb(err);
+function sendImageToArduino(image, cb, filename, pixels) {
+	if (!capturing) {
+		return;
+	}
+	console.log('Painting ' + image);
+
+	if (PRODUCTION == false) {
+		console.log('Creating dummy photo at', filename);
+		fs.readFile(image, function(err, data) {
+			if (!err) {
+				fs.writeFile(filename, data);
 			}
-			return;
-		}
-		console.log('Painting ' + image);
+		});
+	}
 
-		if (PRODUCTION == false) {
-			console.log('Creating dummy photo at', filename);
-			fs.readFile(image, function(err, data) {
-				if (!err) {
-					fs.writeFile(filename, data);
-				}
-			});
-		}
+	// Image dimension
+	var width = pixels.shape[0];
+	var height = pixels.shape[1];
+	var halfWidth = width * 0.5;
+	var halfHeight = height * 0.5;
 
-		// Image dimension
-		var width = pixels.shape[0];
-		var height = pixels.shape[1];
-		var halfWidth = width * 0.5;
-		var halfHeight = height * 0.5;
+	// Find center pixel
+	var center = (halfWidth + halfHeight * width) * 4;
+	var originRed = pixels.data[center];
+	var originGreen = pixels.data[center + 1];
+	var originBlue = pixels.data[center + 2];
 
-		// Find center pixel
-		var center = (halfWidth + halfHeight * width) * 4;
-		var originRed = pixels.data[center];
-		var originGreen = pixels.data[center + 1];
-		var originBlue = pixels.data[center + 2];
+	var radius = width > height ? halfWidth / NUM_LEDS : halfHeight / NUM_LEDS;
+	var bytes = new Uint8Array(NUM_ROWS * BPR);
+	var r = 0;
 
-		var radius = width > height ? halfWidth / NUM_LEDS : halfHeight / NUM_LEDS;
-		var bytes = new Uint8Array(NUM_ROWS * BPR);
-		var r = 0;
+	for (var j = 0; j < NUM_ROWS; j++) {
+		var k = j * BPR;
+		bytes[k++] = originRed;
+		bytes[k++] = originGreen;
+		bytes[k++] = originBlue;
 
-		for (var j = 0; j < NUM_ROWS; j++) {
-			var k = j * BPR;
-			bytes[k++] = originRed;
-			bytes[k++] = originGreen;
-			bytes[k++] = originBlue;
+		var px = halfWidth;
+		var py = halfHeight;
 
-			var px = halfWidth;
-			var py = halfHeight;
+		for (var i = 1; i < NUM_LEDS; i++) { // Starts at 1 to skip the center pixel which is always the same
+			px += Math.cos(r + ANGLE_OFFSET % (2 * Math.PI)) * radius;
+			py += Math.sin(r + ANGLE_OFFSET % (2 * Math.PI)) * radius;
 
-			for (var i = 1; i < NUM_LEDS; i++) { // Starts at 1 to skip the center pixel which is always the same
-				px += Math.cos(r + ANGLE_OFFSET % (2 * Math.PI)) * radius;
-				py += Math.sin(r + ANGLE_OFFSET % (2 * Math.PI)) * radius;
+			var x = Math.round(px);
+			var y = Math.round(py);
 
-				var x = Math.round(px);
-				var y = Math.round(py);
+			var index = (x + y * width) * 4;
+			var red = pixels.data[index];
+			var green = pixels.data[index + 1];
+			var blue = pixels.data[index + 2];
 
-				var index = (x + y * width) * 4;
-				var red = pixels.data[index];
-				var green = pixels.data[index + 1];
-				var blue = pixels.data[index + 2];
-
-				bytes[k++] = red;
-				bytes[k++] = green;
-				bytes[k++] = blue;
-			}
-
-			r += 2 * Math.PI / NUM_ROWS;  // Rotate 1.8deg
+			bytes[k++] = red;
+			bytes[k++] = green;
+			bytes[k++] = blue;
 		}
 
-		if (arduinoPort) {
-			if (arduinoPort.isOpen()) {
-				writeToSerial(bytes, cb, filename);
-			}
+		r += 2 * Math.PI / NUM_ROWS;  // Rotate 1.8deg
+	}
+
+	if (arduinoPort) {
+		if (arduinoPort.isOpen()) {
+			writeToSerial(bytes, cb, filename);
 		}
-	});
+	}
 }
 
 function writeToSerial(bytes, cb, filename) {

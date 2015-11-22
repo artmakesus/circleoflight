@@ -63,7 +63,7 @@ var App = React.createClass({
 		return elem;
 	},
 	getInitialState: function() {
-		return { step: 'one', selectedImage: null, resultPhoto: null }
+		return { step: 'two', selectedImage: null, resultPhoto: null }
 	},
 	componentDidMount: function() {
 		this.listenerID = dispatcher.register(function(payload) {
@@ -232,9 +232,7 @@ var StepTwo = React.createClass({
 	render: function() {
 		var category = this.state.category;
 		var categories = this.state.categories;
-		if (categories.length == 0) {
-			return null;
-		}
+		categories.push({ name: "search" });
 
 		var path = categories.length > 0 ? categories[category].path : '';
 		var images = categories.length > 0 ? categories[category].images : [];
@@ -242,7 +240,7 @@ var StepTwo = React.createClass({
 			<div className='flex column' style={this.styles.container}>
 				<Header tab='one' />
 				<StepTwo.Tabs category={categories[category].name} categories={categories} />
-				<StepTwo.Gallery path={path} images={images} selectedImagePath={this.state.imagePath} />
+				<StepTwo.Gallery category={categories[category].name} path={path} images={images} selectedImagePath={this.state.imagePath} />
 				<StepTwo.Buttons selectedImagePath={this.state.imagePath} />
 			</div>
 		)
@@ -357,6 +355,9 @@ StepTwo.Gallery = React.createClass({
 		},
 	},
 	render: function() {
+		if (this.props.category == 'search') {
+			return <StepTwo.Search selectedImage={this.props.selectedImagePath} />
+		}
 		return (
 			<div className='flex row' style={this.styles.container}>{
 				this.props.images.map(function(image) {
@@ -370,6 +371,108 @@ StepTwo.Gallery = React.createClass({
 				}.bind(this))
 			}</div>
 		)
+	},
+	handleClick: function(imagePath) {
+		dispatcher.dispatch({ type: 'clickedImage', imagePath: imagePath });
+	},
+});
+
+StepTwo.Search = React.createClass({
+	render: function() {
+		return (
+			<div className='flex column' style={this.styles.container}>
+				<input type='text' placeholder="SEARCH THE WEB" style={this.styles.search} onChange={this.handleChange} />
+				<StepTwo.Search.Results images={this.state.images} selectedImage={this.props.selectedImage} />
+			</div>
+		)
+	},
+	getInitialState: function() {
+		return { images: [] };
+	},
+	componentDidMount: function() {
+		
+	},
+	styles: {
+		container: {
+			WebkitFlex: '1 1 70%',
+			msFlex: '1 1 70%',
+			flex: '1 1 70%',
+			margin: '0 16px',
+			overflowY: 'hidden',
+		},
+		search: {
+			color: '#111111',
+			padding: '16px',
+			width: '50%',
+			margin: '0 auto',
+			fontWeight: 'bold',
+			textTransform: 'uppercase',
+		},
+	},
+	handleChange: function(event) {
+		clearTimeout(this.searchTimerID);
+
+		if (event.target.value.length <= 2) {
+			return;
+		}
+
+		this.searchTimerID = setTimeout(function() {
+			$.ajax({
+				url: '/search',
+				method: 'GET',
+				data: { keyword: event.target.value },
+				dataType: 'json',
+			}).done(function(data) {
+				this.setState({ images: data });
+			}.bind(this)).fail(function(resp) {
+				this.setState({ images: [] });
+			}.bind(this));
+		}.bind(this), 1000);
+	},
+});
+
+StepTwo.Search.Results = React.createClass({
+	render: function() {
+		return (
+			<div className='flex row' style={this.styles.container}>{
+				this.props.images.map(function(image, i) {
+					var imagePath = image.MediaUrl;
+					var thumbnailPath = image.Thumbnail.MediaUrl;
+					var imageStyle = m(this.styles.image, this.props.selectedImage == imagePath && this.styles.selectedImage);
+					return (
+						<div key={image.ID} className='flex row align-start justify-between' style={this.styles.imageContainer} onClick={this.handleClick.bind(this, imagePath)} >
+							<img src={thumbnailPath} style={imageStyle} />
+						</div>
+					)
+				}.bind(this))
+			}</div>
+		)
+	},
+	styles: {
+		container: {
+			WebkitFlex: '1 1 70%',
+			msFlex: '1 1 70%',
+			flex: '1 1 70%',
+			flexWrap: 'wrap',
+			padding: '16px',
+			overflowY: 'scroll',
+		},
+		imageContainer: {
+			WebkitFlex: '0 1 20%',
+			msFlex: '0 1 20%',
+			flex: '0 1 20%',
+		},
+		image: {
+			maxHeight: '256px',
+			marginBottom: '8px',
+			border: '8px solid black',
+			cursor: 'pointer',
+			pointerEvents: 'none',
+			imageRendering: 'pixelated',
+		},
+		selectedImage: {
+			border: '8px solid #2cb976',
+		},
 	},
 	handleClick: function(imagePath) {
 		dispatcher.dispatch({ type: 'clickedImage', imagePath: imagePath });
@@ -544,7 +647,7 @@ StepThree.GoingToTakePhoto = React.createClass({
 		return { counter: 5 };
 	},
 	componentDidMount: function() {
-		this.counterID = window.setInterval(this.countDown, 1000);
+		this.counterID = setInterval(this.countDown, 1000);
 	},
 	componentWillUnmount: function() {
 		clearTimeout(this.counterID);
