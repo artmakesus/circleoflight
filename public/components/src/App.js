@@ -63,7 +63,7 @@ var App = React.createClass({
 		return elem;
 	},
 	getInitialState: function() {
-		return { step: 'two', selectedImage: null, resultPhoto: null }
+		return { step: 'one', selectedImage: null, resultPhoto: null }
 	},
 	componentDidMount: function() {
 		this.listenerID = dispatcher.register(function(payload) {
@@ -382,15 +382,12 @@ StepTwo.Search = React.createClass({
 		return (
 			<div className='flex column' style={this.styles.container}>
 				<input type='text' placeholder="SEARCH THE WEB" style={this.styles.search} onChange={this.handleChange} />
-				<StepTwo.Search.Results images={this.state.images} selectedImage={this.props.selectedImage} />
+				{ this.state.searching ? <StepTwo.Search.Loading /> : <StepTwo.Search.Results searching={this.state.searching} images={this.state.images} selectedImage={this.props.selectedImage} /> }
 			</div>
 		)
 	},
 	getInitialState: function() {
-		return { images: [] };
-	},
-	componentDidMount: function() {
-		
+		return { images: [], searching: false };
 	},
 	styles: {
 		container: {
@@ -417,17 +414,39 @@ StepTwo.Search = React.createClass({
 		}
 
 		this.searchTimerID = setTimeout(function() {
+			this.setState({ searching: true });
+
 			$.ajax({
 				url: '/search',
 				method: 'GET',
 				data: { keyword: event.target.value },
 				dataType: 'json',
 			}).done(function(data) {
-				this.setState({ images: data });
+				this.setState({ images: data, searching: false });
 			}.bind(this)).fail(function(resp) {
-				this.setState({ images: [] });
+				this.setState({ images: [], searching: false });
 			}.bind(this));
 		}.bind(this), 1000);
+	},
+});
+
+StepTwo.Search.Loading = React.createClass({
+	render: function() {
+		return (
+			<div className='flex row justify-center' style={this.styles.container}>
+				<h1>Loading</h1>
+			</div>
+		)
+	},
+	styles: {
+		container: {
+			WebkitFlex: '1 1 70%',
+			msFlex: '1 1 70%',
+			flex: '1 1 70%',
+			flexWrap: 'wrap',
+			padding: '16px',
+			overflowY: 'scroll',
+		},
 	},
 });
 

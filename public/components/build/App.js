@@ -68,7 +68,7 @@ var App = React.createClass({
 		return elem;
 	},
 	getInitialState: function () {
-		return { step: 'two', selectedImage: null, resultPhoto: null };
+		return { step: 'one', selectedImage: null, resultPhoto: null };
 	},
 	componentDidMount: function () {
 		this.listenerID = dispatcher.register((function (payload) {
@@ -443,13 +443,12 @@ StepTwo.Search = React.createClass({
 			'div',
 			{ className: 'flex column', style: this.styles.container },
 			React.createElement('input', { type: 'text', placeholder: 'SEARCH THE WEB', style: this.styles.search, onChange: this.handleChange }),
-			React.createElement(StepTwo.Search.Results, { images: this.state.images, selectedImage: this.props.selectedImage })
+			this.state.searching ? React.createElement(StepTwo.Search.Loading, null) : React.createElement(StepTwo.Search.Results, { searching: this.state.searching, images: this.state.images, selectedImage: this.props.selectedImage })
 		);
 	},
 	getInitialState: function () {
-		return { images: [] };
+		return { images: [], searching: false };
 	},
-	componentDidMount: function () {},
 	styles: {
 		container: {
 			WebkitFlex: '1 1 70%',
@@ -475,17 +474,45 @@ StepTwo.Search = React.createClass({
 		}
 
 		this.searchTimerID = setTimeout((function () {
+			this.setState({ searching: true });
+
 			$.ajax({
 				url: '/search',
 				method: 'GET',
 				data: { keyword: event.target.value },
 				dataType: 'json'
 			}).done((function (data) {
-				this.setState({ images: data });
+				this.setState({ images: data, searching: false });
 			}).bind(this)).fail((function (resp) {
-				this.setState({ images: [] });
+				this.setState({ images: [], searching: false });
 			}).bind(this));
 		}).bind(this), 1000);
+	}
+});
+
+StepTwo.Search.Loading = React.createClass({
+	displayName: 'Loading',
+
+	render: function () {
+		return React.createElement(
+			'div',
+			{ className: 'flex row justify-center', style: this.styles.container },
+			React.createElement(
+				'h1',
+				null,
+				'Loading'
+			)
+		);
+	},
+	styles: {
+		container: {
+			WebkitFlex: '1 1 70%',
+			msFlex: '1 1 70%',
+			flex: '1 1 70%',
+			flexWrap: 'wrap',
+			padding: '16px',
+			overflowY: 'scroll'
+		}
 	}
 });
 
